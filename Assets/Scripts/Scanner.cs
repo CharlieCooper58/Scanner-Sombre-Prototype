@@ -44,14 +44,14 @@ public class Scanner : NetworkBehaviour
         scanTimeElapsed += Time.deltaTime;
         while (scanTimeElapsed >= timeBetweenScans)
         {
-            float randomSeed = Random.Range(0, 360);
-            float randomAmplitude = Random.Range(0, angleSpread);
-            // Generate a random direction within angleSpread of transform.forward
-            Vector3 randomDirection = Quaternion.Euler(
-                randomAmplitude * Mathf.Cos(randomSeed),
-                randomAmplitude * Mathf.Sin(randomSeed),
-                0) * transform.forward;
+            float randomSeedX = Random.Range(-angleSpread, angleSpread);
+            float randomSeedY = Random.Range(-angleSpread, angleSpread);
 
+           
+
+            // Generate a random direction within angleSpread of transform.forward
+            Vector3 randomDirection = Quaternion.AngleAxis(randomSeedX, transform.right)*Quaternion.AngleAxis(randomSeedY, transform.up) * transform.forward;
+            
             // Perform the raycast  
             RaycastHit hit;
             if (Physics.Raycast(transform.position, randomDirection, out hit, scanMask))

@@ -51,11 +51,11 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _Color_Fade: 2
+    - _Color_Fade: 30
     - _QueueControl: 0
     - _QueueOffset: 0
-    - _Sample_Distance_Alpha: 3
-    - _Sample_Distance_Color: 20
+    - _Sample_Distance_Alpha: 30
+    - _Sample_Distance_Color: 30
     m_Colors: []
   m_BuildTextureStacks: []
 --- !u!114 &3180688712321675997

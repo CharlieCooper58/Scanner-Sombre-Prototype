@@ -1,3 +1,4 @@
+using StarterAssets;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.Netcode;
@@ -6,11 +7,13 @@ using UnityEngine;
 public class PlayerInputHandler : NetworkBehaviour
 {
     public PlayerControls playerControls;
+    FirstPersonController firstPersonController;
     [Header("Character Input Values")]
     public Vector2 move;
     public Vector2 look;
     public bool jump;
     public bool sprint;
+    public bool crouch;
     Scanner _scanner;
 
     [Header("Movement Settings")]
@@ -22,6 +25,7 @@ public class PlayerInputHandler : NetworkBehaviour
     private void Awake()
     {
         _scanner = GetComponentInChildren<Scanner>();
+        firstPersonController = GetComponent<FirstPersonController>();
     }
     public override void OnNetworkSpawn()
     {
@@ -37,20 +41,45 @@ public class PlayerInputHandler : NetworkBehaviour
             playerControls.Player.Sprint.performed += x => Sprint();
             playerControls.Player.Scan.performed += x => Scan();
             playerControls.Player.ChangeScanSpread.performed += x => ChangeScanSpread(x.ReadValue<Vector2>());
+            playerControls.Player.Crouch.performed += x => ToggleCrouch();
         }
     }
 
     private void Jump()
     {
-        jump = playerControls.Player.Jump.IsPressed();
+        if (firstPersonController.TryJump())
+        {
+            Uncrouch();
+        }
     }
     private void Sprint()
     {
         sprint = playerControls.Player.Sprint.IsPressed();
+        Uncrouch();
     }
     private void Scan()
     {
         _scanner.SetIsScanning(playerControls.Player.Scan.IsPressed());
+    }
+    private void ToggleCrouch()
+    {
+        if (!crouch && firstPersonController.TryCrouch())
+        {
+            crouch = true;
+            sprint = false;
+        }
+        else if (crouch)
+        {
+            Uncrouch();
+        }
+    }
+    private void Uncrouch()
+    {
+        if (crouch)
+        {
+            crouch = false;
+            firstPersonController.Uncrouch();
+        }  
     }
     private void ChangeScanSpread(Vector2 scanChangeInput)
     {

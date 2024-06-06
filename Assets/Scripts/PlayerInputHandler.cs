@@ -75,10 +75,9 @@ public class PlayerInputHandler : NetworkBehaviour
     }
     private void Uncrouch()
     {
-        if (crouch)
+        if (crouch && firstPersonController.TryUncrouch())
         {
             crouch = false;
-            firstPersonController.Uncrouch();
         }  
     }
     private void ChangeScanSpread(Vector2 scanChangeInput)

@@ -35,10 +35,12 @@ namespace StarterAssets
 		[Tooltip("The character uses its own gravity value. The engine default is -9.81f")]
 		public float Gravity = -15.0f;
 
-		bool crouched;
+		// Serialized for debugging, un-serialize the crouched bool if you see this
+		[SerializeField] bool crouched;
 		[SerializeField] float crouchedHeight;
 		[SerializeField] float baseHeight;
 		[SerializeField] float crouchTime;
+		bool crouchCoroutineIsRunning;
 
 		[Space(10)]
 		[Tooltip("Time required to pass before being able to jump again. Set to 0f to instantly jump again")]
@@ -86,6 +88,7 @@ namespace StarterAssets
 		private GameObject _mainCamera;
 		AnimatorHandler animatorHandler;
 		PlayerInputHandler inputHandler;
+		WeaponBob equippedWeaponBob;
 
 		private const float _threshold = 0.01f;
 
@@ -110,6 +113,7 @@ namespace StarterAssets
             }
 			animatorHandler = GetComponent<AnimatorHandler>();
 			inputHandler = GetComponent<PlayerInputHandler>();
+			equippedWeaponBob = GetComponentInChildren<WeaponBob>();
         }
 
 		private void Start()
@@ -149,6 +153,7 @@ namespace StarterAssets
 			JumpAndGravity();
 			GroundedCheck();
 			Move();
+			equippedWeaponBob.SetInputValues(_input.look, new Vector3(_input.move.x, 0.0f, _input.move.y).normalized, _controller.velocity, Grounded);
 		}
 
 		private void LateUpdate()
@@ -284,7 +289,7 @@ namespace StarterAssets
 		public bool TryCrouch()
 		{
 			// Try to crouch and return whether we were successful
-			if (Grounded && !crouched)
+			if (Grounded && !crouched && !crouchCoroutineIsRunning)
 			{
                 animatorHandler.PlayTargetAnimation("Crouch", 1);
 				StartCoroutine("CrouchOrUncrouchCoroutine", true);
@@ -292,24 +297,31 @@ namespace StarterAssets
 			}
 			return false;
 		}
-		public void Uncrouch()
+		public bool TryUncrouch()
 		{
-			if (crouched)
+			if (crouched && !crouchCoroutineIsRunning)
 			{
                 StartCoroutine("CrouchOrUncrouchCoroutine", false);
                 animatorHandler.PlayTargetAnimation("Uncrouch", 1);
+				return true;
             }
+			return false;
 		}
 
 		IEnumerator CrouchOrUncrouchCoroutine(bool goingDown)
 		{
+			if (crouchCoroutineIsRunning)
+			{
+				yield return null;
+			}
+			crouchCoroutineIsRunning = true;
             float crouchLerp = (baseHeight - crouchedHeight) / crouchTime;
 
             if (goingDown)
 			{
 				while(_controller.height > crouchedHeight)
 				{
-					_controller.height -= crouchLerp;
+					_controller.height -= crouchLerp*Time.deltaTime;
 					yield return null;
 				}
 				_controller.height = crouchedHeight;
@@ -319,12 +331,14 @@ namespace StarterAssets
             {
                 while (_controller.height < baseHeight)
                 {
-                    _controller.height += crouchLerp;
+                    _controller.height += crouchLerp*Time.deltaTime;
+					Debug.Log(_controller.height);
 					yield return null;
                 }
                 _controller.height = baseHeight;
                 crouched = false;
             }
+			crouchCoroutineIsRunning = false;
         }
 
 		private static float ClampAngle(float lfAngle, float lfMin, float lfMax)

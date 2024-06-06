@@ -107,6 +107,65 @@ Transform:
   m_Father: {fileID: 8872293628070923607}
   m_RootOrder: 13
   m_LocalEulerAnglesHint: {x: 8.878, y: 15.672, z: 61.184}
+--- !u!1 &585807643716760737
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2979661333641575808}
+  - component: {fileID: 6508074945804651111}
+  m_Layer: 8
+  m_Name: Weapon Holder
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2979661333641575808
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 585807643716760737}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children:
+  - {fileID: 8872293628070923607}
+  m_Father: {fileID: 4135013735270702856}
+  m_RootOrder: 1
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &6508074945804651111
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 585807643716760737}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7b3c0103ed424b34d813090a512b6beb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sway: 1
+  swayRotation: 1
+  bobOffset: 1
+  bobRotation: 1
+  lerpPositionSmoothing: 8
+  lerpRotationSmoothing: 10
+  step: 0.015
+  maxStepDistance: 0.09
+  rotationStep: 4
+  maxRotationStep: 5
+  speedCurve: 0
+  bobTravelLimit: {x: 0.04, y: 0.004, z: 0.04}
+  bobWaveLimit: {x: 0.01, y: 0.01, z: 0.01}
+  bobRotationMultiplier: {x: 0.06, y: 0.06, z: 0.06}
 --- !u!1 &1720347160028717216
 GameObject:
   m_ObjectHideFlags: 0
@@ -255,7 +314,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4680657904011313558}
-  - {fileID: 8872293628070923607}
+  - {fileID: 2979661333641575808}
   m_Father: {fileID: 8997996947095583982}
   m_RootOrder: 0
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
@@ -448,9 +507,10 @@ MonoBehaviour:
   SpeedChangeRate: 10
   JumpHeight: 1.2
   Gravity: -15
+  crouched: 0
   crouchedHeight: 0.7
   baseHeight: 2
-  crouchTime: 0.33
+  crouchTime: 0.2
   JumpTimeout: 0.1
   FallTimeout: 0.15
   Grounded: 1
@@ -2559,12 +2619,12 @@ PrefabInstance:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Modification:
-    m_TransformParent: {fileID: 4135013735270702856}
+    m_TransformParent: {fileID: 2979661333641575808}
     m_Modifications:
     - target: {fileID: -8679921383154817045, guid: 9ea8d3427ad38494cbf0ffc18aa88ace,
         type: 3}
       propertyPath: m_RootOrder
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 9ea8d3427ad38494cbf0ffc18aa88ace,
         type: 3}

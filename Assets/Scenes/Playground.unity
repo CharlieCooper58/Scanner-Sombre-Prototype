@@ -1602,7 +1602,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   dotMesh: {fileID: 10210, guid: 0000000000000000e000000000000000, type: 0}
-  dotMaterial: {fileID: 2100000, guid: 3aa6dfc2ddf4d844397e444feb5e736f, type: 2}
+  dotMaterial: {fileID: 2100000, guid: 541abfadb9b7fed41b17057977c1934c, type: 2}
   dotScale: 0.05
 --- !u!4 &1279047661
 Transform:

@@ -24,12 +24,12 @@ namespace NetworkTools
     {
         public int tick;
         public Vector3 inputVector;
-        public Vector2 lookAround;
+        public Quaternion rotation;
         public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
         {
             serializer.SerializeValue(ref tick);
             serializer.SerializeValue(ref inputVector);
-            serializer.SerializeValue(ref lookAround);
+            serializer.SerializeValue(ref rotation);
         }
     }
     public struct StatePayload : INetworkSerializable

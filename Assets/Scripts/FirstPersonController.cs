@@ -112,7 +112,6 @@ namespace PlayerController
 		CircularBuffer<StatePayload> serverStateBuffer;
 		Queue<InputPayload> serverInputQueue;
 		[SerializeField] float reconciliationThreshold = 3f;
-		bool allowReconciliation = true;
 
 		private bool IsCurrentDeviceMouse
 		{
@@ -193,7 +192,7 @@ namespace PlayerController
 			if (!(IsServer || IsLocalPlayer)) return;
 			while (timer.ShouldTick())
 			{
-                if (IsClient)
+                if (IsLocalPlayer && IsClient)
 				{
 					HandleClientTick();
 				}
@@ -209,6 +208,7 @@ namespace PlayerController
 			{
 				InputPayload inputPayload = serverInputQueue.Dequeue();
 				bufferIndex = inputPayload.tick % k_bufferSize;
+				transform.rotation = inputPayload.rotation;
 
 				StatePayload statePayload = ProcessMovement(inputPayload);
 				serverStateBuffer.Add(statePayload, bufferIndex);
@@ -216,14 +216,6 @@ namespace PlayerController
 			if (bufferIndex == -1) return;
 			SendStateToClientRPC(serverStateBuffer.Get(bufferIndex));
 		}
-        StatePayload SimulateMovement(InputPayload inputPayload)
-        {
-			//Physics.simulationMode = SimulationMode.Script;
-			//CalculateMovement(inputPayload.inputVector);
-			//Physics.Simulate(timer.MinTimeBetweenTicks);
-			//Physics.simulationMode = SimulationMode.FixedUpdate;
-			return ProcessMovement(inputPayload);
-        }
 
         [ClientRpc]
 		void SendStateToClientRPC(StatePayload statePayload)
@@ -240,7 +232,8 @@ namespace PlayerController
 			InputPayload inputPayload = new InputPayload()
 			{
 				tick = currentTick,
-				inputVector = _input.move
+				inputVector = _input.move,
+				rotation = transform.rotation,
 			};
 			clientInputBuffer.Add(inputPayload, bufferIndex);
 			SendInputToServerRPC(inputPayload);
@@ -267,8 +260,6 @@ namespace PlayerController
 			positionError = Vector3.Distance(clientStateBuffer.Get(bufferIndex).position, rewindState.position);
 			if (positionError > reconciliationThreshold)
 			{
-                Debug.Log(rewindState.position);
-                Debug.Log(positionError);
                 ReconcileState(rewindState);
 			}
 
@@ -288,10 +279,6 @@ namespace PlayerController
 			transform.rotation = rewindState.rotation;
 
 			_controller.enabled = true;
-            Debug.Log(rewindState.position);
-			Debug.Log(transform.position);
-            // if (rewindState.Equals(lastServerState)) return;
-
             clientStateBuffer.Add(rewindState, rewindState.tick);
 
 			// Replay all inputs from the rewind state to the current state
@@ -304,9 +291,6 @@ namespace PlayerController
 				clientStateBuffer.Add(statePayload, bufferIndex);
 				tickToReplay++;
 			}
-
-            Debug.Log("Discrepancy found, reconciled");
-			//allowReconciliation = false;
 		}
 		[ServerRpc]
 		void SendInputToServerRPC(InputPayload inputPayload)

@@ -2,25 +2,30 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class AnimatorHandler : MonoBehaviour
+
+namespace Animation
 {
-    int currentStatePriority;
-    Animator _animator;
-    private void Awake()
+    public class AnimatorHandler : MonoBehaviour
     {
-        _animator = GetComponent<Animator>();
-    }
-    public void PlayTargetAnimation(string animationName, int priority)
-    {
-        if(priority > currentStatePriority)
+        int currentStatePriority;
+        Animator _animator;
+        private void Awake()
         {
-            currentStatePriority = priority;
-            _animator.Play(animationName);
+            _animator = GetComponent<Animator>();
+        }
+        public void PlayTargetAnimation(string animationName, int priority)
+        {
+            if (priority > currentStatePriority)
+            {
+                currentStatePriority = priority;
+                _animator.Play(animationName);
+            }
+        }
+
+        public void ResetStatePriority()
+        {
+            currentStatePriority = 0;
         }
     }
-
-    public void ResetStatePriority()
-    {
-        currentStatePriority = 0;
-    }
 }
+

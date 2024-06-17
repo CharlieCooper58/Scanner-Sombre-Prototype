@@ -1,15 +1,17 @@
 ﻿using UnityEngine;
 using System.Collections;
 using UnityEngine.Animations;
-
+using System.Collections.Generic;
 
 #if ENABLE_INPUT_SYSTEM && STARTER_ASSETS_PACKAGES_CHECKED
 using UnityEngine.InputSystem;
 using Unity.Netcode;
 using Cinemachine;
+using Animation;
+using NetworkTools;
 #endif
 
-namespace StarterAssets
+namespace PlayerController
 {
 	[RequireComponent(typeof(CharacterController))]
 #if ENABLE_INPUT_SYSTEM && STARTER_ASSETS_PACKAGES_CHECKED
@@ -75,6 +77,8 @@ namespace StarterAssets
 		private float _rotationVelocity;
 		private float _verticalVelocity;
 		private float _terminalVelocity = 53.0f;
+		Vector3 _horizontalVelocity;
+		Vector3 currentVerticalVelocity;
 
 		// timeout deltatime
 		private float _jumpTimeoutDelta;
@@ -91,6 +95,24 @@ namespace StarterAssets
 		WeaponBob equippedWeaponBob;
 
 		private const float _threshold = 0.01f;
+
+
+		// Netcode general
+		NetworkTimer timer;
+		const float k_serverTickRate = 240f; // 60 FPS
+		const int k_bufferSize = 1024;
+
+		// Netcode client specific
+		CircularBuffer<StatePayload> clientStateBuffer;
+		CircularBuffer<InputPayload> clientInputBuffer;
+		StatePayload lastServerState;
+		StatePayload lastProcessedState;
+
+		// Netcode server specific
+		CircularBuffer<StatePayload> serverStateBuffer;
+		Queue<InputPayload> serverInputQueue;
+		[SerializeField] float reconciliationThreshold = 3f;
+		bool allowReconciliation = true;
 
 		private bool IsCurrentDeviceMouse
 		{
@@ -114,6 +136,13 @@ namespace StarterAssets
 			animatorHandler = GetComponent<AnimatorHandler>();
 			inputHandler = GetComponent<PlayerInputHandler>();
 			equippedWeaponBob = GetComponentInChildren<WeaponBob>();
+
+			timer = new NetworkTimer(k_serverTickRate);
+			clientStateBuffer = new CircularBuffer<StatePayload>(k_bufferSize);
+			clientInputBuffer = new CircularBuffer<InputPayload>(k_bufferSize);
+
+			serverStateBuffer = new CircularBuffer<StatePayload>(k_bufferSize);
+			serverInputQueue = new Queue<InputPayload>();
         }
 
 		private void Start()
@@ -150,13 +179,160 @@ namespace StarterAssets
 
         private void Update()
 		{
-			JumpAndGravity();
-			GroundedCheck();
-			Move();
-			equippedWeaponBob.SetInputValues(_input.look, new Vector3(_input.move.x, 0.0f, _input.move.y).normalized, _controller.velocity, Grounded);
+			timer.Update(Time.deltaTime);
+		}
+		public void DebugTeleport()
+		{
+            _controller.enabled = false;
+            transform.position = new Vector3(100, 100, 100);
+            _controller.enabled = true;
+			Debug.Log(transform.position);
+        }
+		private void FixedUpdate()
+		{
+			if (!(IsServer || IsLocalPlayer)) return;
+			while (timer.ShouldTick())
+			{
+                if (IsClient)
+				{
+					HandleClientTick();
+				}
+
+				else if (IsServer)
+					HandleServerTick();
+			}
+		}
+		void HandleServerTick()
+		{
+			var bufferIndex = -1;
+			while(serverInputQueue.Count > 0)
+			{
+				InputPayload inputPayload = serverInputQueue.Dequeue();
+				bufferIndex = inputPayload.tick % k_bufferSize;
+
+				StatePayload statePayload = ProcessMovement(inputPayload);
+				serverStateBuffer.Add(statePayload, bufferIndex);
+			}
+			if (bufferIndex == -1) return;
+			SendStateToClientRPC(serverStateBuffer.Get(bufferIndex));
+		}
+        StatePayload SimulateMovement(InputPayload inputPayload)
+        {
+			//Physics.simulationMode = SimulationMode.Script;
+			//CalculateMovement(inputPayload.inputVector);
+			//Physics.Simulate(timer.MinTimeBetweenTicks);
+			//Physics.simulationMode = SimulationMode.FixedUpdate;
+			return ProcessMovement(inputPayload);
+        }
+
+        [ClientRpc]
+		void SendStateToClientRPC(StatePayload statePayload)
+		{
+			if (!IsOwner) return;
+			lastServerState = statePayload;
+		}
+		void HandleClientTick()
+		{
+			if (!IsClient) return;
+			var currentTick = timer.currentTick;
+			var bufferIndex = currentTick % k_bufferSize;
+
+			InputPayload inputPayload = new InputPayload()
+			{
+				tick = currentTick,
+				inputVector = _input.move
+			};
+			clientInputBuffer.Add(inputPayload, bufferIndex);
+			SendInputToServerRPC(inputPayload);
+
+			StatePayload statePayload = ProcessMovement(inputPayload);
+			//Debug.Log(statePayload.position);
+			clientStateBuffer.Add(statePayload, bufferIndex);
+
+			HandleServerReconciliation();
+        }
+		void HandleServerReconciliation()
+		{
+			if (!ShouldReconcile())
+			{
+				return;
+			}
+			float positionError;
+			int bufferIndex;
+			StatePayload rewindState = default;
+
+			bufferIndex = lastServerState.tick % k_bufferSize;
+			if (bufferIndex - 1 < 0) return; // Not enough information to reconcile
+			rewindState = IsHost ? serverStateBuffer.Get(bufferIndex - 1) : lastServerState;
+			positionError = Vector3.Distance(clientStateBuffer.Get(bufferIndex).position, rewindState.position);
+			if (positionError > reconciliationThreshold)
+			{
+                Debug.Log(rewindState.position);
+                Debug.Log(positionError);
+                ReconcileState(rewindState);
+			}
+
+			lastProcessedState = lastServerState;
+		}
+		bool ShouldReconcile()
+		{
+			bool isNewServerState = !lastServerState.Equals(default);
+			bool isLastStateUndefinedOrDifferent = lastProcessedState.Equals(default) || !lastProcessedState.Equals(lastServerState);
+
+			return isNewServerState && isLastStateUndefinedOrDifferent;// && allowReconciliation;
+		}
+		void ReconcileState(StatePayload rewindState)
+		{
+			_controller.enabled = false;
+			transform.position = rewindState.position;
+			transform.rotation = rewindState.rotation;
+
+			_controller.enabled = true;
+            Debug.Log(rewindState.position);
+			Debug.Log(transform.position);
+            // if (rewindState.Equals(lastServerState)) return;
+
+            clientStateBuffer.Add(rewindState, rewindState.tick);
+
+			// Replay all inputs from the rewind state to the current state
+			int tickToReplay = lastServerState.tick;
+
+			while(tickToReplay <= timer.currentTick)
+			{
+				int bufferIndex = tickToReplay % k_bufferSize;
+				StatePayload statePayload = ProcessMovement(clientInputBuffer.Get(bufferIndex));
+				clientStateBuffer.Add(statePayload, bufferIndex);
+				tickToReplay++;
+			}
+
+            Debug.Log("Discrepancy found, reconciled");
+			//allowReconciliation = false;
+		}
+		[ServerRpc]
+		void SendInputToServerRPC(InputPayload inputPayload)
+		{
+			serverInputQueue.Enqueue(inputPayload);
 		}
 
-		private void LateUpdate()
+		StatePayload ProcessMovement(InputPayload input)
+		{
+			CalculateMovement(input.inputVector);
+			return new StatePayload()
+			{
+				tick = input.tick,
+				position = transform.position,
+				rotation = transform.rotation,
+				controllerHeight = _controller.height
+			};
+		}
+        private void CalculateMovement(Vector2 inputVector)
+        {
+            JumpAndGravity();
+            GroundedCheck();
+            CombineGroundedAndVerticalMovement(inputVector);
+            equippedWeaponBob.SetInputValues(_input.look, new Vector3(_input.move.x, 0.0f, _input.move.y).normalized, _horizontalVelocity+currentVerticalVelocity, Grounded);
+        }
+        private void LateUpdate()
 		{
 			CameraRotation();
 		}
@@ -190,7 +366,7 @@ namespace StarterAssets
 			}
 		}
 
-		private void Move()
+		private void CombineGroundedAndVerticalMovement(Vector2 inputVector)
 		{
 			// set target speed based on move speed, sprint speed and if sprint is pressed
 			float targetSpeed = _input.sprint ? SprintSpeed :(_input.crouch? CrouchSpeed: MoveSpeed);
@@ -199,20 +375,20 @@ namespace StarterAssets
 
 			// note: Vector2's == operator uses approximation so is not floating point error prone, and is cheaper than magnitude
 			// if there is no input, set the target speed to 0
-			if (_input.move == Vector2.zero) targetSpeed = 0.0f;
+			if (inputVector == Vector2.zero) targetSpeed = 0.0f;
 
 			// a reference to the players current horizontal velocity
-			float currentHorizontalSpeed = new Vector3(_controller.velocity.x, 0.0f, _controller.velocity.z).magnitude;
+			float currentHorizontalSpeed = _horizontalVelocity.magnitude;
 
 			float speedOffset = 0.1f;
-			float inputMagnitude = _input.analogMovement ? _input.move.magnitude : 1f;
+			float inputMagnitude = _input.analogMovement ? inputVector.magnitude : 1f;
 
 			// accelerate or decelerate to target speed
 			if (currentHorizontalSpeed < targetSpeed - speedOffset || currentHorizontalSpeed > targetSpeed + speedOffset)
 			{
 				// creates curved result rather than a linear one giving a more organic speed change
 				// note T in Lerp is clamped, so we don't need to clamp our speed
-				_speed = Mathf.Lerp(currentHorizontalSpeed, targetSpeed * inputMagnitude, Time.deltaTime * SpeedChangeRate);
+				_speed = Mathf.Lerp(currentHorizontalSpeed, targetSpeed * inputMagnitude, timer.MinTimeBetweenTicks * SpeedChangeRate);
 
 				// round speed to 3 decimal places
 				_speed = Mathf.Round(_speed * 1000f) / 1000f;
@@ -223,18 +399,25 @@ namespace StarterAssets
 			}
 
 			// normalise input direction
-			Vector3 inputDirection = new Vector3(_input.move.x, 0.0f, _input.move.y).normalized;
+			Vector3 inputDirection = new Vector3(inputVector.x, 0.0f, inputVector.y).normalized;
 
 			// note: Vector2's != operator uses approximation so is not floating point error prone, and is cheaper than magnitude
 			// if there is a move input rotate player when the player is moving
-			if (_input.move != Vector2.zero)
+			if (inputVector != Vector2.zero)
 			{
 				// move
-				inputDirection = transform.right * _input.move.x + transform.forward * _input.move.y;
+				inputDirection = transform.right * inputVector.x + transform.forward * inputVector.y;
 			}
+			_horizontalVelocity = inputDirection.normalized * _speed;
 
-			// move the player
-			_controller.Move(inputDirection.normalized * (_speed * Time.deltaTime) + new Vector3(0.0f, _verticalVelocity, 0.0f) * Time.deltaTime);
+            _controller.Move(_horizontalVelocity * timer.MinTimeBetweenTicks + new Vector3(0.0f, _verticalVelocity, 0.0f) * timer.MinTimeBetweenTicks);
+			
+			
+			//print(movementV3.magnitude);
+            // move the player
+            //_controller.Move(movementV3);
+
+			//Physics.SyncTransforms();
 		}
 
 		public bool TryJump()
@@ -262,7 +445,7 @@ namespace StarterAssets
 				// jump timeout
 				if (_jumpTimeoutDelta >= 0.0f)
 				{
-					_jumpTimeoutDelta -= Time.deltaTime;
+					_jumpTimeoutDelta -= timer.MinTimeBetweenTicks;
 				}
 			}
 			else
@@ -273,7 +456,7 @@ namespace StarterAssets
 				// fall timeout
 				if (_fallTimeoutDelta >= 0.0f)
 				{
-					_fallTimeoutDelta -= Time.deltaTime;
+					_fallTimeoutDelta -= timer.MinTimeBetweenTicks;
 				}
 
 				// if we are not grounded, do not jump
@@ -282,7 +465,7 @@ namespace StarterAssets
 			// apply gravity over time if under terminal (multiply by delta time twice to linearly speed up over time)
 			if (_verticalVelocity < _terminalVelocity)
 			{
-				_verticalVelocity += Gravity * Time.deltaTime;
+				_verticalVelocity += Gravity * timer.MinTimeBetweenTicks;
 			}
 		}
 

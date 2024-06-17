@@ -89,6 +89,15 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""DebugTeleport"",
+                    ""type"": ""Button"",
+                    ""id"": ""5b7379c7-8659-465b-b8c1-4cc87d715907"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
                 }
             ],
             ""bindings"": [
@@ -300,6 +309,17 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
                     ""action"": ""Crouch"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""c2cde869-f323-4e24-a851-d936155639d1"",
+                    ""path"": ""<Keyboard>/p"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""DebugTeleport"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
                 }
             ]
         }
@@ -363,6 +383,7 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
         m_Player_Scan = m_Player.FindAction("Scan", throwIfNotFound: true);
         m_Player_ChangeScanSpread = m_Player.FindAction("ChangeScanSpread", throwIfNotFound: true);
         m_Player_Crouch = m_Player.FindAction("Crouch", throwIfNotFound: true);
+        m_Player_DebugTeleport = m_Player.FindAction("DebugTeleport", throwIfNotFound: true);
     }
 
     public void Dispose()
@@ -431,6 +452,7 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
     private readonly InputAction m_Player_Scan;
     private readonly InputAction m_Player_ChangeScanSpread;
     private readonly InputAction m_Player_Crouch;
+    private readonly InputAction m_Player_DebugTeleport;
     public struct PlayerActions
     {
         private @PlayerControls m_Wrapper;
@@ -442,6 +464,7 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
         public InputAction @Scan => m_Wrapper.m_Player_Scan;
         public InputAction @ChangeScanSpread => m_Wrapper.m_Player_ChangeScanSpread;
         public InputAction @Crouch => m_Wrapper.m_Player_Crouch;
+        public InputAction @DebugTeleport => m_Wrapper.m_Player_DebugTeleport;
         public InputActionMap Get() { return m_Wrapper.m_Player; }
         public void Enable() { Get().Enable(); }
         public void Disable() { Get().Disable(); }
@@ -472,6 +495,9 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
             @Crouch.started += instance.OnCrouch;
             @Crouch.performed += instance.OnCrouch;
             @Crouch.canceled += instance.OnCrouch;
+            @DebugTeleport.started += instance.OnDebugTeleport;
+            @DebugTeleport.performed += instance.OnDebugTeleport;
+            @DebugTeleport.canceled += instance.OnDebugTeleport;
         }
 
         private void UnregisterCallbacks(IPlayerActions instance)
@@ -497,6 +523,9 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
             @Crouch.started -= instance.OnCrouch;
             @Crouch.performed -= instance.OnCrouch;
             @Crouch.canceled -= instance.OnCrouch;
+            @DebugTeleport.started -= instance.OnDebugTeleport;
+            @DebugTeleport.performed -= instance.OnDebugTeleport;
+            @DebugTeleport.canceled -= instance.OnDebugTeleport;
         }
 
         public void RemoveCallbacks(IPlayerActions instance)
@@ -559,5 +588,6 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
         void OnScan(InputAction.CallbackContext context);
         void OnChangeScanSpread(InputAction.CallbackContext context);
         void OnCrouch(InputAction.CallbackContext context);
+        void OnDebugTeleport(InputAction.CallbackContext context);
     }
 }

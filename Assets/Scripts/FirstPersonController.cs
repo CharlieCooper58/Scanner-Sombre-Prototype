@@ -99,7 +99,7 @@ namespace PlayerController
 
 		// Netcode general
 		NetworkTimer timer;
-		const float k_serverTickRate = 240f; // 60 FPS
+		const float k_serverTickRate = 60f; // 60 FPS
 		const int k_bufferSize = 1024;
 
 		// Netcode client specific
@@ -222,6 +222,7 @@ namespace PlayerController
 		{
 			if (!IsOwner) return;
 			lastServerState = statePayload;
+			Debug.Log(statePayload.position);
 		}
 		void HandleClientTick()
 		{
@@ -234,6 +235,9 @@ namespace PlayerController
 				tick = currentTick,
 				inputVector = _input.move,
 				rotation = transform.rotation,
+				sprint = _input.sprint,
+				jump = _input.jump,
+				crouch = _input.crouch,
 			};
 			clientInputBuffer.Add(inputPayload, bufferIndex);
 			SendInputToServerRPC(inputPayload);
@@ -300,20 +304,20 @@ namespace PlayerController
 
 		StatePayload ProcessMovement(InputPayload input)
 		{
-			CalculateMovement(input.inputVector);
+			CalculateMovement(input);
 			return new StatePayload()
 			{
 				tick = input.tick,
 				position = transform.position,
 				rotation = transform.rotation,
-				controllerHeight = _controller.height
 			};
 		}
-        private void CalculateMovement(Vector2 inputVector)
+        private void CalculateMovement(InputPayload input)
         {
-            JumpAndGravity();
+            JumpAndGravity(input);
             GroundedCheck();
-            CombineGroundedAndVerticalMovement(inputVector);
+			HandleCrouch(input);
+            CombineGroundedAndVerticalMovement(input);
             equippedWeaponBob.SetInputValues(_input.look, new Vector3(_input.move.x, 0.0f, _input.move.y).normalized, _horizontalVelocity+currentVerticalVelocity, Grounded);
         }
         private void LateUpdate()
@@ -350,22 +354,27 @@ namespace PlayerController
 			}
 		}
 
-		private void CombineGroundedAndVerticalMovement(Vector2 inputVector)
+		private void CombineGroundedAndVerticalMovement(InputPayload input)
 		{
 			// set target speed based on move speed, sprint speed and if sprint is pressed
-			float targetSpeed = _input.sprint ? SprintSpeed :(_input.crouch? CrouchSpeed: MoveSpeed);
+			float targetSpeed = input.sprint ? SprintSpeed :(_input.crouch? CrouchSpeed: MoveSpeed);
+			if(crouched && input.sprint)
+			{
+				TryUncrouch();
+				_input.CancelCrouchInput();
+			}
 
 			// a simplistic acceleration and deceleration designed to be easy to remove, replace, or iterate upon
 
 			// note: Vector2's == operator uses approximation so is not floating point error prone, and is cheaper than magnitude
 			// if there is no input, set the target speed to 0
-			if (inputVector == Vector2.zero) targetSpeed = 0.0f;
+			if (input.inputVector == Vector2.zero) targetSpeed = 0.0f;
 
 			// a reference to the players current horizontal velocity
 			float currentHorizontalSpeed = _horizontalVelocity.magnitude;
 
 			float speedOffset = 0.1f;
-			float inputMagnitude = _input.analogMovement ? inputVector.magnitude : 1f;
+			float inputMagnitude = _input.analogMovement ? input.inputVector.magnitude : 1f;
 
 			// accelerate or decelerate to target speed
 			if (currentHorizontalSpeed < targetSpeed - speedOffset || currentHorizontalSpeed > targetSpeed + speedOffset)
@@ -383,25 +392,22 @@ namespace PlayerController
 			}
 
 			// normalise input direction
-			Vector3 inputDirection = new Vector3(inputVector.x, 0.0f, inputVector.y).normalized;
+			Vector3 inputDirection;
 
 			// note: Vector2's != operator uses approximation so is not floating point error prone, and is cheaper than magnitude
 			// if there is a move input rotate player when the player is moving
-			if (inputVector != Vector2.zero)
+			if (input.inputVector != Vector2.zero)
 			{
 				// move
-				inputDirection = transform.right * inputVector.x + transform.forward * inputVector.y;
+				inputDirection = (transform.right * input.inputVector.x + transform.forward * input.inputVector.y).normalized;
 			}
-			_horizontalVelocity = inputDirection.normalized * _speed;
+			else
+			{
+				inputDirection = Vector3.zero;
+			}
+			_horizontalVelocity = inputDirection * _speed;
 
             _controller.Move(_horizontalVelocity * timer.MinTimeBetweenTicks + new Vector3(0.0f, _verticalVelocity, 0.0f) * timer.MinTimeBetweenTicks);
-			
-			
-			//print(movementV3.magnitude);
-            // move the player
-            //_controller.Move(movementV3);
-
-			//Physics.SyncTransforms();
 		}
 
 		public bool TryJump()
@@ -414,7 +420,7 @@ namespace PlayerController
             }
 			return false;
         }
-		private void JumpAndGravity()
+		private void JumpAndGravity(InputPayload input)
 		{
 			if (Grounded)
 			{
@@ -431,7 +437,12 @@ namespace PlayerController
 				{
 					_jumpTimeoutDelta -= timer.MinTimeBetweenTicks;
 				}
-			}
+				else if (input.jump)
+				{
+                    _verticalVelocity = Mathf.Sqrt(JumpHeight * -2f * Gravity);
+					_input.CancelCrouchInput();
+                }
+            }
 			else
 			{
 				// reset the jump timeout timer
@@ -453,6 +464,17 @@ namespace PlayerController
 			}
 		}
 
+		private void HandleCrouch(InputPayload input)
+		{
+			if(input.crouch)
+			{
+				TryCrouch();
+            }
+			else
+			{
+                TryUncrouch();
+            }
+		}
 		public bool TryCrouch()
 		{
 			// Try to crouch and return whether we were successful
@@ -460,6 +482,7 @@ namespace PlayerController
 			{
                 animatorHandler.PlayTargetAnimation("Crouch", 1);
 				StartCoroutine("CrouchOrUncrouchCoroutine", true);
+                _input.CancelSprintInput();
                 return true;
 			}
 			return false;

@@ -23,13 +23,19 @@ namespace NetworkTools
     public struct InputPayload : INetworkSerializable
     {
         public int tick;
-        public Vector3 inputVector;
+        public Vector2 inputVector;
         public Quaternion rotation;
+        public bool sprint;
+        public bool jump;
+        public bool crouch;
         public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
         {
             serializer.SerializeValue(ref tick);
             serializer.SerializeValue(ref inputVector);
             serializer.SerializeValue(ref rotation);
+            serializer.SerializeValue(ref sprint);
+            serializer.SerializeValue(ref jump);
+            serializer.SerializeValue(ref crouch);
         }
     }
     public struct StatePayload : INetworkSerializable
@@ -38,7 +44,6 @@ namespace NetworkTools
         public Vector3 position;
         public Quaternion rotation;
         public Vector3 lookDirection;
-        public float controllerHeight;
 
         public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
         {
@@ -46,7 +51,6 @@ namespace NetworkTools
             serializer.SerializeValue(ref position);
             serializer.SerializeValue(ref rotation);
             serializer.SerializeValue(ref lookDirection);
-            serializer.SerializeValue(ref controllerHeight);
         }
     }
 

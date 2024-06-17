@@ -51,15 +51,23 @@ namespace PlayerController
 
         private void Jump()
         {
-            if (firstPersonController.TryJump())
-            {
-                Uncrouch();
-            }
+            jump = playerControls.Player.Jump.IsPressed();
+            //if (firstPersonController.TryJump())
+            //{
+            //    Uncrouch();
+            //}
+        }
+        public void CancelJumpInput()
+        {
+            jump = false;
         }
         private void Sprint()
         {
             sprint = playerControls.Player.Sprint.IsPressed();
-            Uncrouch();
+        }
+        public void CancelSprintInput()
+        {
+            sprint = false;
         }
         private void Scan()
         {
@@ -67,15 +75,7 @@ namespace PlayerController
         }
         private void ToggleCrouch()
         {
-            if (!crouch && firstPersonController.TryCrouch())
-            {
-                crouch = true;
-                sprint = false;
-            }
-            else if (crouch)
-            {
-                Uncrouch();
-            }
+            crouch = !crouch;
         }
         private void Uncrouch()
         {
@@ -83,6 +83,10 @@ namespace PlayerController
             {
                 crouch = false;
             }
+        }
+        public void CancelCrouchInput()
+        {
+            crouch = false;
         }
         private void ChangeScanSpread(Vector2 scanChangeInput)
         {

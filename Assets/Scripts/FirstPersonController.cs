@@ -118,6 +118,7 @@ namespace PlayerController
 
 		// Netcode server specific
 		CircularBuffer<StatePayload> serverStateBuffer;
+		CircularBuffer<Vector3> serverHistoryBuffer;
 		Queue<InputPayload> serverInputQueue;
 		[SerializeField] float reconciliationThreshold = 3f;
 		float reconciliationCooldownTime;
@@ -194,6 +195,7 @@ namespace PlayerController
 			{
 				shadow = Instantiate(shadowPrefab);
 				shadow.SetParent(this);
+				serverHistoryBuffer = new CircularBuffer<Vector3>(1024);
 			}
 			ServerWorldManager.instance.activePlayers.Add(this);
 
@@ -222,19 +224,19 @@ namespace PlayerController
         }
 		private void FixedUpdate()
 		{
-			if (!(IsServer || IsLocalPlayer)) return;
-			while (timer.ShouldTick())
-			{
-				if (IsLocalPlayer && IsClient)
-				{
-					HandleLocalPlayerTick();
-				}
-
+			//if (!(IsServer || IsLocalPlayer)) return;
+			//while (timer.ShouldTick())
+			//{
+			//	if (IsLocalPlayer && IsClient)
+			//	{
+			//		HandleLocalPlayerTick();
+			//	}
+		
 				//else if (IsServer)
 					//HandleServerTick();
 				//else if (IsClient)
 				//	HandleNonlocalClientTick();
-			}
+			//}
 		}
 		void HandleNonlocalClientTick()
 		{
@@ -254,7 +256,8 @@ namespace PlayerController
 				StatePayload statePayload = ProcessMovement(inputPayload);
 				serverStateBuffer.Add(statePayload, bufferIndex);
 			}
-			if (bufferIndex == -1) return;
+            serverHistoryBuffer.Add(transform.position, ServerWorldManager.instance.currentServerTimerTick.Value % 1024);
+            if (bufferIndex == -1) return;
 			SendStateToClientRPC(serverStateBuffer.Get(bufferIndex));
 		}
 
@@ -268,7 +271,7 @@ namespace PlayerController
 		public Vector3 GetPositionAtTick(int tick)
 		{
 			var bufferIndex = tick % k_bufferSize;
-			return serverStateBuffer.Get(bufferIndex).position;
+			return serverHistoryBuffer.Get(bufferIndex);
 		}
 		void HandleLocalPlayerTick()
 		{

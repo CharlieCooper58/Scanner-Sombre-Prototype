@@ -11,6 +11,7 @@ namespace PlayerController
     {
         public PlayerControls playerControls;
         FirstPersonController firstPersonController;
+        PlayerWeaponController weaponController;
         [Header("Character Input Values")]
         public Vector2 move;
         public Vector2 look;
@@ -29,6 +30,7 @@ namespace PlayerController
         {
             _scanner = GetComponentInChildren<Scanner>();
             firstPersonController = GetComponent<FirstPersonController>();
+            weaponController = GetComponent<PlayerWeaponController>();
         }
         public override void OnNetworkSpawn()
         {
@@ -46,6 +48,7 @@ namespace PlayerController
                 playerControls.Player.ChangeScanSpread.performed += x => ChangeScanSpread(x.ReadValue<Vector2>());
                 playerControls.Player.Crouch.performed += x => ToggleCrouch();
                 playerControls.Player.DebugTeleport.performed += x => firstPersonController.DebugTeleport();
+                playerControls.Player.Shoot.performed += x => weaponController.TryShoot();
             }
         }
 

@@ -25,6 +25,7 @@ namespace NetworkTools
         public int tick;
         public Vector2 inputVector;
         public Quaternion rotation;
+        public Quaternion lookRotation;
         public bool sprint;
         public bool jump;
         public bool crouch;
@@ -33,6 +34,7 @@ namespace NetworkTools
             serializer.SerializeValue(ref tick);
             serializer.SerializeValue(ref inputVector);
             serializer.SerializeValue(ref rotation);
+            serializer.SerializeValue(ref lookRotation);
             serializer.SerializeValue(ref sprint);
             serializer.SerializeValue(ref jump);
             serializer.SerializeValue(ref crouch);

@@ -2,6 +2,14 @@
 using System.Collections;
 using UnityEngine.Animations;
 using System.Collections.Generic;
+using System.Threading;
+using CharlieExtras;
+using Unity.Netcode.Components;
+using System;
+
+
+
+
 
 #if ENABLE_INPUT_SYSTEM && STARTER_ASSETS_PACKAGES_CHECKED
 using UnityEngine.InputSystem;
@@ -17,7 +25,7 @@ namespace PlayerController
 #if ENABLE_INPUT_SYSTEM && STARTER_ASSETS_PACKAGES_CHECKED
 	//[RequireComponent(typeof(PlayerInput))]
 #endif
-	public class FirstPersonController : NetworkBehaviour
+	public class FirstPersonController : NetworkBehaviour, IReconstructable
 	{
 		[Header("Player")]
 		[Tooltip("Move speed of the character in m/s")]
@@ -112,7 +120,11 @@ namespace PlayerController
 		CircularBuffer<StatePayload> serverStateBuffer;
 		Queue<InputPayload> serverInputQueue;
 		[SerializeField] float reconciliationThreshold = 3f;
+		float reconciliationCooldownTime;
+		CountdownTimer reconciliationCooldownTimer;
 
+		[SerializeField] PhysicsSimulationShadow shadowPrefab;
+		public PhysicsSimulationShadow shadow;
 		private bool IsCurrentDeviceMouse
 		{
 			get
@@ -157,6 +169,9 @@ namespace PlayerController
             // reset our timeouts on start
             _jumpTimeoutDelta = JumpTimeout;
             _fallTimeoutDelta = FallTimeout;
+			reconciliationCooldownTimer = new CountdownTimer(reconciliationCooldownTime);
+            ServerWorldManager.instance.OnClockTick += OnServerClockTick;
+
         }
         public override void OnNetworkSpawn()
         {
@@ -172,13 +187,31 @@ namespace PlayerController
 				{
 					vcam.Follow = CinemachineCameraTarget.transform;
 				}
+				ServerWorldManager.instance.localPlayer = this;
+				GetComponent<NetworkTransform>().enabled = false;
             }
+			else if (IsServer)
+			{
+				shadow = Instantiate(shadowPrefab);
+				shadow.SetParent(this);
+			}
+			ServerWorldManager.instance.activePlayers.Add(this);
 
+        }
+
+        private void OnServerClockTick(object sender, System.EventArgs e)
+        {
+			if (IsServer)
+				HandleServerTick();
+			else if (IsLocalPlayer)
+				HandleLocalPlayerTick();
+			else if (IsClient)
+				HandleNonlocalClientTick();
         }
 
         private void Update()
 		{
-			timer.Update(Time.deltaTime);
+			reconciliationCooldownTimer.Tick(Time.deltaTime);
 		}
 		public void DebugTeleport()
 		{
@@ -192,16 +225,23 @@ namespace PlayerController
 			if (!(IsServer || IsLocalPlayer)) return;
 			while (timer.ShouldTick())
 			{
-                if (IsLocalPlayer && IsClient)
+				if (IsLocalPlayer && IsClient)
 				{
-					HandleClientTick();
+					HandleLocalPlayerTick();
 				}
 
-				else if (IsServer)
-					HandleServerTick();
+				//else if (IsServer)
+					//HandleServerTick();
+				//else if (IsClient)
+				//	HandleNonlocalClientTick();
 			}
 		}
-		void HandleServerTick()
+		void HandleNonlocalClientTick()
+		{
+			transform.position = lastServerState.position;
+			transform.rotation = lastServerState.rotation;
+		}
+		public void HandleServerTick()
 		{
 			var bufferIndex = -1;
 			while(serverInputQueue.Count > 0)
@@ -209,6 +249,7 @@ namespace PlayerController
 				InputPayload inputPayload = serverInputQueue.Dequeue();
 				bufferIndex = inputPayload.tick % k_bufferSize;
 				transform.rotation = inputPayload.rotation;
+				CinemachineCameraTarget.transform.localRotation = inputPayload.lookRotation;
 
 				StatePayload statePayload = ProcessMovement(inputPayload);
 				serverStateBuffer.Add(statePayload, bufferIndex);
@@ -220,11 +261,16 @@ namespace PlayerController
         [ClientRpc]
 		void SendStateToClientRPC(StatePayload statePayload)
 		{
-			if (!IsOwner) return;
+			if (!IsClient) return;
 			lastServerState = statePayload;
 			Debug.Log(statePayload.position);
 		}
-		void HandleClientTick()
+		public Vector3 GetPositionAtTick(int tick)
+		{
+			var bufferIndex = tick % k_bufferSize;
+			return serverStateBuffer.Get(bufferIndex).position;
+		}
+		void HandleLocalPlayerTick()
 		{
 			if (!IsClient) return;
 			var currentTick = timer.currentTick;
@@ -235,6 +281,7 @@ namespace PlayerController
 				tick = currentTick,
 				inputVector = _input.move,
 				rotation = transform.rotation,
+				lookRotation = CinemachineCameraTarget.transform.localRotation,
 				sprint = _input.sprint,
 				jump = _input.jump,
 				crouch = _input.crouch,
@@ -274,7 +321,7 @@ namespace PlayerController
 			bool isNewServerState = !lastServerState.Equals(default);
 			bool isLastStateUndefinedOrDifferent = lastProcessedState.Equals(default) || !lastProcessedState.Equals(lastServerState);
 
-			return isNewServerState && isLastStateUndefinedOrDifferent;// && allowReconciliation;
+			return isNewServerState && isLastStateUndefinedOrDifferent && reconciliationCooldownTimer.CheckTimer();
 		}
 		void ReconcileState(StatePayload rewindState)
 		{
@@ -549,5 +596,6 @@ namespace PlayerController
 			// when selected, draw a gizmo in the position of, and matching radius of, the grounded collider
 			Gizmos.DrawSphere(new Vector3(transform.position.x, transform.position.y - GroundedOffset, transform.position.z), GroundedRadius);
 		}
-	}
+
+    }
 }

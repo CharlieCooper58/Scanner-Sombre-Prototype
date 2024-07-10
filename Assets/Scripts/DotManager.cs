@@ -6,23 +6,28 @@ using UnityEngine.Rendering;
 using Unity.Netcode;
 public class DotManager : NetworkBehaviour
 {
-    public static DotManager instance;
     [SerializeField] Mesh dotMesh;
     [SerializeField] Material dotMaterial;
     List<List<Matrix4x4>> matrixBatches;
     [SerializeField] float dotScale;
     int dotLayer;
+
+    Vector3Int gridCoord;
     private void Awake()
-    {
-        instance = this;
-    }
-    private void Start()
     {
         matrixBatches = new List<List<Matrix4x4>>
         {
             new List<Matrix4x4>()
         };
         dotLayer = LayerMask.NameToLayer("Scan");
+    }
+    public void Initialize(Vector3Int coord)
+    {
+        gridCoord = coord;
+    }
+    private void Start()
+    {
+        
     }
     public void SpawnDot(Vector3 dotPosition)
     {

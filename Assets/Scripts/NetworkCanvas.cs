@@ -4,27 +4,27 @@ using UnityEngine;
 using Unity.Netcode;
 public class NetworkCanvas : MonoBehaviour
 {
-    NetworkManager _networkManager;
-
-    private void Awake()
+    private void Start()
     {
-        _networkManager = GetComponentInParent<NetworkManager>();
+        if (NetworkManager.Singleton.IsListening)
+        {
+            gameObject.SetActive(false);
+        }
     }
-
     public void StartServer()
     {
-        _networkManager.StartServer();
+        MultiplayerManager.instance.StartServer();
         gameObject.SetActive(false);
     }
     public void StartHost()
     {
-        _networkManager.StartHost();
+        MultiplayerManager.instance.StartHost();
         gameObject.SetActive(false);
 
     }
     public void StartClient()
     {
-        _networkManager.StartClient();
+        MultiplayerManager.instance.StartClient();
         gameObject.SetActive(false);
 
     }

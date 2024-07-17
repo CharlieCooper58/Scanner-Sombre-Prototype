@@ -2,13 +2,13 @@
 using System.Collections;
 using UnityEngine.Animations;
 using System.Collections.Generic;
-
-#if ENABLE_INPUT_SYSTEM && STARTER_ASSETS_PACKAGES_CHECKED
 using UnityEngine.InputSystem;
 using Unity.Netcode;
 using Cinemachine;
 using Animation;
 using NetworkTools;
+#if ENABLE_INPUT_SYSTEM && STARTER_ASSETS_PACKAGES_CHECKED
+
 #endif
 
 namespace PlayerController

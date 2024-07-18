@@ -27,6 +27,12 @@ namespace NetworkTools
             }
             return false;
         }
+
+        //Probably not necessary
+        public float GetPercentageToNextTick()
+        {
+            return (timer / MinTimeBetweenTicks);
+        }
     }
 }
 

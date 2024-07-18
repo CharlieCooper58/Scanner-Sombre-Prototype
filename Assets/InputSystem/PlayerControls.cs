@@ -47,7 +47,7 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
                 },
                 {
                     ""name"": ""Jump"",
-                    ""type"": ""Button"",
+                    ""type"": ""PassThrough"",
                     ""id"": ""8c4abdf8-4099-493a-aa1a-129acec7c3df"",
                     ""expectedControlType"": ""Button"",
                     ""processors"": """",
@@ -94,6 +94,15 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
                     ""name"": ""DebugTeleport"",
                     ""type"": ""Button"",
                     ""id"": ""5b7379c7-8659-465b-b8c1-4cc87d715907"",
+                    ""expectedControlType"": ""Button"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": false
+                },
+                {
+                    ""name"": ""Shoot"",
+                    ""type"": ""Button"",
+                    ""id"": ""3f398581-23c7-4f6b-bbac-04ac5fcc124f"",
                     ""expectedControlType"": ""Button"",
                     ""processors"": """",
                     ""interactions"": """",
@@ -320,6 +329,17 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
                     ""action"": ""DebugTeleport"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""de06823b-4df9-4b25-96b0-77d7c1559fa1"",
+                    ""path"": ""<Mouse>/leftButton"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Shoot"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
                 }
             ]
         }
@@ -384,6 +404,7 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
         m_Player_ChangeScanSpread = m_Player.FindAction("ChangeScanSpread", throwIfNotFound: true);
         m_Player_Crouch = m_Player.FindAction("Crouch", throwIfNotFound: true);
         m_Player_DebugTeleport = m_Player.FindAction("DebugTeleport", throwIfNotFound: true);
+        m_Player_Shoot = m_Player.FindAction("Shoot", throwIfNotFound: true);
     }
 
     public void Dispose()
@@ -453,6 +474,7 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
     private readonly InputAction m_Player_ChangeScanSpread;
     private readonly InputAction m_Player_Crouch;
     private readonly InputAction m_Player_DebugTeleport;
+    private readonly InputAction m_Player_Shoot;
     public struct PlayerActions
     {
         private @PlayerControls m_Wrapper;
@@ -465,6 +487,7 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
         public InputAction @ChangeScanSpread => m_Wrapper.m_Player_ChangeScanSpread;
         public InputAction @Crouch => m_Wrapper.m_Player_Crouch;
         public InputAction @DebugTeleport => m_Wrapper.m_Player_DebugTeleport;
+        public InputAction @Shoot => m_Wrapper.m_Player_Shoot;
         public InputActionMap Get() { return m_Wrapper.m_Player; }
         public void Enable() { Get().Enable(); }
         public void Disable() { Get().Disable(); }
@@ -498,6 +521,9 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
             @DebugTeleport.started += instance.OnDebugTeleport;
             @DebugTeleport.performed += instance.OnDebugTeleport;
             @DebugTeleport.canceled += instance.OnDebugTeleport;
+            @Shoot.started += instance.OnShoot;
+            @Shoot.performed += instance.OnShoot;
+            @Shoot.canceled += instance.OnShoot;
         }
 
         private void UnregisterCallbacks(IPlayerActions instance)
@@ -526,6 +552,9 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
             @DebugTeleport.started -= instance.OnDebugTeleport;
             @DebugTeleport.performed -= instance.OnDebugTeleport;
             @DebugTeleport.canceled -= instance.OnDebugTeleport;
+            @Shoot.started -= instance.OnShoot;
+            @Shoot.performed -= instance.OnShoot;
+            @Shoot.canceled -= instance.OnShoot;
         }
 
         public void RemoveCallbacks(IPlayerActions instance)
@@ -589,5 +618,6 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
         void OnChangeScanSpread(InputAction.CallbackContext context);
         void OnCrouch(InputAction.CallbackContext context);
         void OnDebugTeleport(InputAction.CallbackContext context);
+        void OnShoot(InputAction.CallbackContext context);
     }
 }

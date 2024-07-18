@@ -32,14 +32,14 @@ public class LobbyManager : MonoBehaviour
         //HandleLobbyHeartbeat();
 
 #if DEDICATED_SERVER
-        //if (serverQueryHandler != null)
-    //{
-      //  serverQueryHandler.UpdateServerCheck();
-    //}
-    //else
-   // {
-    //    Debug.LogWarning("serverQueryHandler is null.");
-    //}
+    if (serverQueryHandler != null)
+    {
+        serverQueryHandler.UpdateServerCheck();
+    }
+    else
+    {
+        Debug.LogWarning("serverQueryHandler is null.");
+    }
 #endif
     }
     private void HandleLobbyHeartbeat() 

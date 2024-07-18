@@ -88,7 +88,7 @@ PlayerSettings:
   hideHomeButton: 0
   submitAnalytics: 1
   usePlayerLog: 1
-  dedicatedServerOptimizations: 0
+  dedicatedServerOptimizations: 1
   bakeCollisionMeshes: 0
   forceSingleInstance: 0
   useFlipModelSwapchain: 1
@@ -627,7 +627,8 @@ PlayerSettings:
   webGLMemoryGeometricGrowthCap: 96
   webGLPowerPreference: 2
   scriptingDefineSymbols:
-    Standalone: STARTER_ASSETS_PACKAGES_CHECKED
+    Server: DEDICATED_SERVER
+    Standalone: STARTER_ASSETS_PACKAGES_CHECKED;DEDICATED_SERVER_NOT
   additionalCompilerArguments: {}
   platformArchitecture: {}
   scriptingBackend: {}

@@ -46,6 +46,10 @@ namespace NetworkTools
         public Vector3 position;
         public Quaternion rotation;
         public Vector3 lookDirection;
+        public bool moving;
+        public bool sprint;
+        public bool crouch;
+        public float controllerHeight;
 
         public void NetworkSerialize<T>(BufferSerializer<T> serializer) where T : IReaderWriter
         {
@@ -53,8 +57,13 @@ namespace NetworkTools
             serializer.SerializeValue(ref position);
             serializer.SerializeValue(ref rotation);
             serializer.SerializeValue(ref lookDirection);
+            serializer.SerializeValue(ref moving);
+            serializer.SerializeValue(ref sprint);
+            serializer.SerializeValue(ref crouch);
+            serializer.SerializeValue(ref controllerHeight);
         }
     }
+
 
 }
 

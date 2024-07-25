@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8f20f9cefa0041846a4a618882cbb8e5, type: 3}
+  m_Name: Gun Sounds
+  m_EditorClassIdentifier: 
+  clips:
+  - {fileID: 8300000, guid: b787b02b22496954fb96a05d287c31a1, type: 3}
+  - {fileID: 8300000, guid: d1c60f5a1d3dba3479c60e2eb9406655, type: 3}
+  - {fileID: 8300000, guid: 6ed13b9b7e6781e4789abbbcf4d1bd68, type: 3}
+  - {fileID: 8300000, guid: e3ed56671467b1e4f82744b36d24264e, type: 3}
+  - {fileID: 8300000, guid: 3e582e6857d2dab44a632270793cba0a, type: 3}
+  - {fileID: 8300000, guid: b42183f7ebdfa644ba12a3bd9ad48e5b, type: 3}

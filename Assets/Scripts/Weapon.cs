@@ -9,6 +9,9 @@ public class Weapon : NetworkBehaviour
     NetworkVariable<float> reloadTimer = new NetworkVariable<float>();
     [SerializeField] float reloadTimerMax;
 
+    [SerializeField] AudioSource gunAudio;
+    [SerializeField] SoundEffectSO gunshotSounds;
+
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
@@ -20,6 +23,15 @@ public class Weapon : NetworkBehaviour
     public void Fire()
     {
         reloadTimer.Value = reloadTimerMax;
+        FireSoundClientRPC();
+        Debug.Log("Trying to shoot");
+    }
+
+    [ClientRpc]
+    public void FireSoundClientRPC()
+    {
+        gunAudio.PlayOneShot(gunshotSounds.GetSound());
+        Debug.Log("Please bang");
     }
     public bool CanFire()
     {

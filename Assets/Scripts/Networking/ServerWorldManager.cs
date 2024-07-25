@@ -26,7 +26,15 @@ public class ServerWorldManager : NetworkBehaviour
     const float k_serverTickRate = 60f; // 60 FPS
     private void Awake()
     {
-        instance = this;
+        if(instance == null)
+        {
+            instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
         timer = new NetworkTimer(k_serverTickRate);
     }
 

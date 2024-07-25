@@ -83,7 +83,7 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
                 },
                 {
                     ""name"": ""Crouch"",
-                    ""type"": ""Button"",
+                    ""type"": ""PassThrough"",
                     ""id"": ""bd5e5432-2857-4cb6-8d7a-e852aca5a8ae"",
                     ""expectedControlType"": ""Button"",
                     ""processors"": """",
@@ -101,7 +101,7 @@ public partial class @PlayerControls: IInputActionCollection2, IDisposable
                 },
                 {
                     ""name"": ""Shoot"",
-                    ""type"": ""Button"",
+                    ""type"": ""PassThrough"",
                     ""id"": ""3f398581-23c7-4f6b-bbac-04ac5fcc124f"",
                     ""expectedControlType"": ""Button"",
                     ""processors"": """",

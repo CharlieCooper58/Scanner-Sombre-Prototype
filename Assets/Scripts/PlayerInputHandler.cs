@@ -18,6 +18,8 @@ namespace PlayerController
         public bool jump;
         public bool sprint;
         public bool crouch;
+
+        public bool triggerIsHeld;
         Scanner _scanner;
 
         [Header("Movement Settings")]
@@ -47,8 +49,10 @@ namespace PlayerController
                 playerControls.Player.Scan.performed += x => Scan();
                 playerControls.Player.ChangeScanSpread.performed += x => ChangeScanSpread(x.ReadValue<Vector2>());
                 playerControls.Player.Crouch.performed += x => ToggleCrouch();
+                //playerControls.Player.Crouch.canceled += x => ToggleCrouch();
+
                 playerControls.Player.DebugTeleport.performed += x => firstPersonController.DebugTeleport();
-                playerControls.Player.Shoot.performed += x => weaponController.TryShoot();
+                playerControls.Player.Shoot.performed += x => Shoot();
             }
         }
 
@@ -60,17 +64,9 @@ namespace PlayerController
             //    Uncrouch();
             //}
         }
-        public void CancelJumpInput()
-        {
-            jump = false;
-        }
         private void Sprint()
         {
             sprint = playerControls.Player.Sprint.IsPressed();
-        }
-        public void CancelSprintInput()
-        {
-            sprint = false;
         }
         private void Scan()
         {
@@ -78,22 +74,17 @@ namespace PlayerController
         }
         private void ToggleCrouch()
         {
-            crouch = !crouch;
+            crouch = playerControls.Player.Crouch.IsPressed();
         }
-        private void Uncrouch()
-        {
-            if (crouch && firstPersonController.TryUncrouch())
-            {
-                crouch = false;
-            }
-        }
-        public void CancelCrouchInput()
-        {
-            crouch = false;
-        }
+
         private void ChangeScanSpread(Vector2 scanChangeInput)
         {
             _scanner.ChangeSpread(scanChangeInput.y);
+        }
+
+        private void Shoot()
+        {
+            triggerIsHeld = playerControls.Player.Shoot.IsPressed();
         }
         private void OnApplicationFocus(bool hasFocus)
         {

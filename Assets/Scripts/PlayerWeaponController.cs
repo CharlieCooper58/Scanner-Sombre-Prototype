@@ -7,6 +7,7 @@ using UnityEngine;
 public class PlayerWeaponController : NetworkBehaviour
 {
     FirstPersonController playerController;
+    PlayerInputHandler playerInputHandler;
     [SerializeField] Weapon equippedWeapon;
     [SerializeField] Transform cameraRotationThingy;
     Vector3 screenCenter;
@@ -17,17 +18,25 @@ public class PlayerWeaponController : NetworkBehaviour
     private void Awake()
     {
         playerController = GetComponent<FirstPersonController>();
+        playerInputHandler = GetComponent<PlayerInputHandler>();
     }
     private void Start()
     {
         canHitWithGunMask = ~LayerMask.GetMask("Local Player");
         screenCenter = new Vector3(Screen.width / 2, Screen.height / 2, 0);
     }
+    private void Update()
+    {
+        if (playerInputHandler.triggerIsHeld)
+        {
+            TryShoot();
+        }
+    }
     public void TryShoot() 
     {
-        
         if (equippedWeapon != null && equippedWeapon.CanFire())
         {
+            Debug.Log("Bang");
             Vector3 hitPoint;
             // Create a ray from the center of the screen
             Ray ray = Camera.main.ScreenPointToRay(screenCenter);

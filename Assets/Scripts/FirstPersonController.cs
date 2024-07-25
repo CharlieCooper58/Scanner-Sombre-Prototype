@@ -17,6 +17,7 @@ using Unity.Netcode;
 using Cinemachine;
 using Animation;
 using NetworkTools;
+using UnityEngine.Windows;
 //#endif
 
 namespace PlayerController
@@ -45,12 +46,14 @@ namespace PlayerController
 		[Tooltip("The character uses its own gravity value. The engine default is -9.81f")]
 		public float Gravity = -15.0f;
 
-		// Serialized for debugging, un-serialize the crouched bool if you see this
-		[SerializeField] bool crouched;
+		bool isCrouched;
+		// Tracks over the server whether the player is sprinting
+		bool isSprinting;
+		bool isMoving;
 		[SerializeField] float crouchedHeight;
 		[SerializeField] float baseHeight;
-		[SerializeField] float crouchTime;
-		bool crouchCoroutineIsRunning;
+		[Tooltip("The speed at which the player's controller changes height when crouching or uncrouching")]
+		[SerializeField] float crouchAndUncrouchSpeed;
 
 		[Space(10)]
 		[Tooltip("Time required to pass before being able to jump again. Set to 0f to instantly jump again")]
@@ -60,7 +63,7 @@ namespace PlayerController
 
 		[Header("Player Grounded")]
 		[Tooltip("If the character is grounded or not. Not part of the CharacterController built in grounded check")]
-		public bool Grounded = true;
+		public bool isGrounded = true;
 		[Tooltip("Useful for rough ground")]
 		public float GroundedOffset = -0.14f;
 		[Tooltip("The radius of the grounded check. Should match the radius of the CharacterController")]
@@ -92,7 +95,7 @@ namespace PlayerController
 		private float _jumpTimeoutDelta;
 		private float _fallTimeoutDelta;
 
-	
+
 #if ENABLE_INPUT_SYSTEM && STARTER_ASSETS_PACKAGES_CHECKED
 #endif
 		private CharacterController _controller;
@@ -104,6 +107,9 @@ namespace PlayerController
 
 		private const float _threshold = 0.01f;
 
+
+		// Sound effects
+		PlayerMovementSoundEffects movementSounds;
 
 		// Netcode general
 		NetworkTimer timer;
@@ -118,7 +124,7 @@ namespace PlayerController
 
 		// Netcode server specific
 		CircularBuffer<StatePayload> serverStateBuffer;
-		CircularBuffer<Vector3> serverHistoryBuffer;
+		CircularBuffer<StatePayload> serverHistoryBuffer;
 		Queue<InputPayload> serverInputQueue;
 		[SerializeField] float reconciliationThreshold = 3f;
 		float reconciliationCooldownTime;
@@ -126,27 +132,29 @@ namespace PlayerController
 
 		[SerializeField] PhysicsSimulationShadow shadowPrefab;
 		public PhysicsSimulationShadow shadow;
+
 		private bool IsCurrentDeviceMouse
 		{
 			get
 			{
 #if ENABLE_INPUT_SYSTEM && STARTER_ASSETS_PACKAGES_CHECKED
 				return true; //_input.playerControls.currentControlScheme == "KeyboardMouse";
-				#else
+#else
 				return false;
-				#endif
+#endif
 			}
 		}
 
 		private void Awake()
 		{
-            // get a reference to our main camera
-            if (_mainCamera == null)
-            {
-                _mainCamera = GameObject.FindGameObjectWithTag("MainCamera");
-            }
+			// get a reference to our main camera
+			if (_mainCamera == null)
+			{
+				_mainCamera = GameObject.FindGameObjectWithTag("MainCamera");
+			}
 			animatorHandler = GetComponent<AnimatorHandler>();
 			inputHandler = GetComponent<PlayerInputHandler>();
+			movementSounds = GetComponent<PlayerMovementSoundEffects>();
 			equippedWeaponBob = GetComponentInChildren<WeaponBob>();
 
 			timer = new NetworkTimer(k_serverTickRate);
@@ -155,98 +163,88 @@ namespace PlayerController
 
 			serverStateBuffer = new CircularBuffer<StatePayload>(k_bufferSize);
 			serverInputQueue = new Queue<InputPayload>();
-        }
+		}
 
 		private void Start()
 		{
-            _controller = GetComponent<CharacterController>();
-            _input = GetComponent<PlayerInputHandler>();
+			_controller = GetComponent<CharacterController>();
+			_input = GetComponent<PlayerInputHandler>();
 #if ENABLE_INPUT_SYSTEM && STARTER_ASSETS_PACKAGES_CHECKED
-            //_playerInput = PlayerInputHandler
+			//_playerInput = PlayerInputHandler
 #else
 			Debug.LogError( "Starter Assets package is missing dependencies. Please use Tools/Starter Assets/Reinstall Dependencies to fix it");
 #endif
 
-            // reset our timeouts on start
-            _jumpTimeoutDelta = JumpTimeout;
-            _fallTimeoutDelta = FallTimeout;
+			// reset our timeouts on start
+			_jumpTimeoutDelta = JumpTimeout;
+			_fallTimeoutDelta = FallTimeout;
 			reconciliationCooldownTimer = new CountdownTimer(reconciliationCooldownTime);
-            ServerWorldManager.instance.OnClockTick += OnServerClockTick;
+			ServerWorldManager.instance.OnClockTick += OnServerClockTick;
 
-        }
-        public override void OnNetworkSpawn()
-        {
-            base.OnNetworkSpawn();
+		}
+		public override void OnNetworkSpawn()
+		{
+			base.OnNetworkSpawn();
 			if (IsLocalPlayer)
 			{
 				int localPlayerLayer = LayerMask.NameToLayer("Local Player");
 				gameObject.layer = localPlayerLayer;
 				GetComponentInChildren<Collider>().gameObject.layer = localPlayerLayer;
 				CinemachineCameraTarget.layer = localPlayerLayer;
-                CinemachineVirtualCamera vcam = FindObjectOfType<CinemachineVirtualCamera>();
+				CinemachineVirtualCamera vcam = FindObjectOfType<CinemachineVirtualCamera>();
 				if (vcam != null)
 				{
 					vcam.Follow = CinemachineCameraTarget.transform;
 				}
 				ServerWorldManager.instance.localPlayer = this;
-				GetComponent<NetworkTransform>().enabled = false;
-            }
+			}
 			else if (IsServer)
 			{
 				shadow = Instantiate(shadowPrefab);
 				shadow.SetParent(this);
-				serverHistoryBuffer = new CircularBuffer<Vector3>(1024);
+				serverHistoryBuffer = new CircularBuffer<StatePayload>(1024);
 			}
 			ServerWorldManager.instance.activePlayers.Add(this);
 
-        }
+		}
 
-        private void OnServerClockTick(object sender, System.EventArgs e)
-        {
+		private void OnServerClockTick(object sender, System.EventArgs e)
+		{
 			if (IsServer)
 				HandleServerTick();
 			else if (IsLocalPlayer)
 				HandleLocalPlayerTick();
 			else if (IsClient)
 				HandleNonlocalClientTick();
-        }
+		}
 
-        private void Update()
+		private void Update()
 		{
 			reconciliationCooldownTimer.Tick(Time.deltaTime);
 		}
 		public void DebugTeleport()
 		{
-            _controller.enabled = false;
-            transform.position = new Vector3(100, 100, 100);
-            _controller.enabled = true;
+			_controller.enabled = false;
+			transform.position = new Vector3(100, 100, 100);
+			_controller.enabled = true;
 			Debug.Log(transform.position);
-        }
-		private void FixedUpdate()
-		{
-			//if (!(IsServer || IsLocalPlayer)) return;
-			//while (timer.ShouldTick())
-			//{
-			//	if (IsLocalPlayer && IsClient)
-			//	{
-			//		HandleLocalPlayerTick();
-			//	}
-		
-				//else if (IsServer)
-					//HandleServerTick();
-				//else if (IsClient)
-				//	HandleNonlocalClientTick();
-			//}
 		}
 		void HandleNonlocalClientTick()
 		{
 			transform.position = lastServerState.position;
 			transform.rotation = lastServerState.rotation;
+			_controller.height = lastServerState.controllerHeight;
+			isCrouched = lastServerState.crouch;
+			isSprinting = lastServerState.sprint;
+			isMoving = lastServerState.moving;
+			GroundedCheck();
+			SetMovementSounds();
+
 		}
 		public void HandleServerTick()
 		{
 			var bufferIndex = -1;
-			while(serverInputQueue.Count > 0)
+			while (serverInputQueue.Count > 0)
 			{
 				InputPayload inputPayload = serverInputQueue.Dequeue();
 				bufferIndex = inputPayload.tick % k_bufferSize;
@@ -256,12 +254,24 @@ namespace PlayerController
 				StatePayload statePayload = ProcessMovement(inputPayload);
 				serverStateBuffer.Add(statePayload, bufferIndex);
 			}
-            serverHistoryBuffer.Add(transform.position, ServerWorldManager.instance.currentServerTimerTick.Value % 1024);
-            if (bufferIndex == -1) return;
+            StatePayload historyPayload = new StatePayload()
+            {
+                position = transform.position,
+                rotation = transform.rotation,
+                lookDirection = transform.forward,
+                sprint = isSprinting,
+                crouch = isCrouched,
+                controllerHeight = _controller.height
+            };
+            serverHistoryBuffer.Add(historyPayload, ServerWorldManager.instance.currentServerTimerTick.Value % 1024);
+            if (bufferIndex == -1)
+			{
+                return;
+			}
 			SendStateToClientRPC(serverStateBuffer.Get(bufferIndex));
 		}
 
-        [ClientRpc]
+		[ClientRpc]
 		void SendStateToClientRPC(StatePayload statePayload)
 		{
 			if (!IsClient) return;
@@ -271,7 +281,7 @@ namespace PlayerController
 		public Vector3 GetPositionAtTick(int tick)
 		{
 			var bufferIndex = tick % k_bufferSize;
-			return serverHistoryBuffer.Get(bufferIndex);
+			return serverHistoryBuffer.Get(bufferIndex).position;
 		}
 		void HandleLocalPlayerTick()
 		{
@@ -296,8 +306,11 @@ namespace PlayerController
 			//Debug.Log(statePayload.position);
 			clientStateBuffer.Add(statePayload, bufferIndex);
 
-			HandleServerReconciliation();
-        }
+            SetMovementSounds();
+            equippedWeaponBob.SetInputValues(_input.look, new Vector3(_input.move.x, 0.0f, _input.move.y).normalized, _horizontalVelocity + currentVerticalVelocity, isGrounded);
+
+            HandleServerReconciliation();
+		}
 		void HandleServerReconciliation()
 		{
 			if (!ShouldReconcile())
@@ -314,7 +327,7 @@ namespace PlayerController
 			positionError = Vector3.Distance(clientStateBuffer.Get(bufferIndex).position, rewindState.position);
 			if (positionError > reconciliationThreshold)
 			{
-                ReconcileState(rewindState);
+				ReconcileState(rewindState);
 			}
 
 			lastProcessedState = lastServerState;
@@ -333,12 +346,12 @@ namespace PlayerController
 			transform.rotation = rewindState.rotation;
 
 			_controller.enabled = true;
-            clientStateBuffer.Add(rewindState, rewindState.tick);
+			clientStateBuffer.Add(rewindState, rewindState.tick);
 
 			// Replay all inputs from the rewind state to the current state
 			int tickToReplay = lastServerState.tick;
 
-			while(tickToReplay <= timer.currentTick)
+			while (tickToReplay <= timer.currentTick)
 			{
 				int bufferIndex = tickToReplay % k_bufferSize;
 				StatePayload statePayload = ProcessMovement(clientInputBuffer.Get(bufferIndex));
@@ -360,17 +373,32 @@ namespace PlayerController
 				tick = input.tick,
 				position = transform.position,
 				rotation = transform.rotation,
+				moving = isMoving,
+				sprint = isSprinting,
+				crouch = isCrouched,
+				controllerHeight = _controller.height
 			};
 		}
-        private void CalculateMovement(InputPayload input)
-        {
-            JumpAndGravity(input);
-            GroundedCheck();
-			HandleCrouch(input);
-            CombineGroundedAndVerticalMovement(input);
-            equippedWeaponBob.SetInputValues(_input.look, new Vector3(_input.move.x, 0.0f, _input.move.y).normalized, _horizontalVelocity+currentVerticalVelocity, Grounded);
+		private void CalculateMovement(InputPayload input)
+		{
+			JumpAndGravity(input);
+			GroundedCheck();
+			HandleCrouchAndSprint(input);
+			AdjustPlayerHeight();
+			CombineGroundedAndVerticalMovement(input);
         }
-        private void LateUpdate()
+		private void SetMovementSounds()
+		{
+            if (isMoving && isGrounded)
+            {
+                movementSounds.SetIsMoving((isCrouched ? PlayerMovementSoundEffects.MovementStyle.Crouched : (isSprinting ? PlayerMovementSoundEffects.MovementStyle.Sprinting : PlayerMovementSoundEffects.MovementStyle.Walking)));
+            }
+            else
+            {
+                movementSounds.SetIsMoving(PlayerMovementSoundEffects.MovementStyle.StoppedOrAirborne);
+            }
+        }
+		private void LateUpdate()
 		{
 			CameraRotation();
 		}
@@ -379,7 +407,7 @@ namespace PlayerController
 		{
 			// set sphere position, with offset
 			Vector3 spherePosition = new Vector3(transform.position.x, transform.position.y - GroundedOffset, transform.position.z);
-			Grounded = Physics.CheckSphere(spherePosition, GroundedRadius, GroundLayers, QueryTriggerInteraction.Ignore);
+			isGrounded = Physics.CheckSphere(spherePosition, GroundedRadius, GroundLayers, QueryTriggerInteraction.Ignore);
 		}
 
 		private void CameraRotation()
@@ -389,7 +417,7 @@ namespace PlayerController
 			{
 				//Don't multiply mouse input by Time.deltaTime
 				float deltaTimeMultiplier = IsCurrentDeviceMouse ? 1.0f : Time.deltaTime;
-				
+
 				_cinemachineTargetPitch += _input.look.y * RotationSpeed * deltaTimeMultiplier;
 				_rotationVelocity = _input.look.x * RotationSpeed * deltaTimeMultiplier;
 
@@ -407,18 +435,21 @@ namespace PlayerController
 		private void CombineGroundedAndVerticalMovement(InputPayload input)
 		{
 			// set target speed based on move speed, sprint speed and if sprint is pressed
-			float targetSpeed = input.sprint ? SprintSpeed :(_input.crouch? CrouchSpeed: MoveSpeed);
-			if(crouched && input.sprint)
-			{
-				TryUncrouch();
-				_input.CancelCrouchInput();
-			}
+			float targetSpeed = input.sprint ? SprintSpeed : (_input.crouch ? CrouchSpeed : MoveSpeed);
 
 			// a simplistic acceleration and deceleration designed to be easy to remove, replace, or iterate upon
 
 			// note: Vector2's == operator uses approximation so is not floating point error prone, and is cheaper than magnitude
 			// if there is no input, set the target speed to 0
-			if (input.inputVector == Vector2.zero) targetSpeed = 0.0f;
+			if (input.inputVector == Vector2.zero)
+			{
+				targetSpeed = 0.0f;
+				isMoving = false;
+			}
+			else
+			{
+				isMoving = true;
+			}
 
 			// a reference to the players current horizontal velocity
 			float currentHorizontalSpeed = _horizontalVelocity.magnitude;
@@ -431,7 +462,7 @@ namespace PlayerController
 			{
 				// creates curved result rather than a linear one giving a more organic speed change
 				// note T in Lerp is clamped, so we don't need to clamp our speed
-				_speed = Mathf.Lerp(currentHorizontalSpeed, targetSpeed * inputMagnitude, timer.MinTimeBetweenTicks * SpeedChangeRate);
+				_speed = Mathf.Lerp(currentHorizontalSpeed, targetSpeed * inputMagnitude, ServerWorldManager.instance.timer.MinTimeBetweenTicks * SpeedChangeRate);
 
 				// round speed to 3 decimal places
 				_speed = Mathf.Round(_speed * 1000f) / 1000f;
@@ -457,22 +488,22 @@ namespace PlayerController
 			}
 			_horizontalVelocity = inputDirection * _speed;
 
-            _controller.Move(_horizontalVelocity * timer.MinTimeBetweenTicks + new Vector3(0.0f, _verticalVelocity, 0.0f) * timer.MinTimeBetweenTicks);
+			_controller.Move(_horizontalVelocity * ServerWorldManager.instance.timer.MinTimeBetweenTicks + new Vector3(0.0f, _verticalVelocity, 0.0f) * ServerWorldManager.instance.timer.MinTimeBetweenTicks);
 		}
 
 		public bool TryJump()
 		{
-			if (Grounded && _jumpTimeoutDelta <= 0.0f)
+			if (isGrounded && _jumpTimeoutDelta <= 0.0f)
 			{
-                // the square root of H * -2 * G = how much velocity needed to reach desired height
-                _verticalVelocity = Mathf.Sqrt(JumpHeight * -2f * Gravity);
+				// the square root of H * -2 * G = how much velocity needed to reach desired height
+				_verticalVelocity = Mathf.Sqrt(JumpHeight * -2f * Gravity);
 				return true;
-            }
+			}
 			return false;
-        }
+		}
 		private void JumpAndGravity(InputPayload input)
 		{
-			if (Grounded)
+			if (isGrounded)
 			{
 				// reset the fall timeout timer
 				_fallTimeoutDelta = FallTimeout;
@@ -485,14 +516,13 @@ namespace PlayerController
 				// jump timeout
 				if (_jumpTimeoutDelta >= 0.0f)
 				{
-					_jumpTimeoutDelta -= timer.MinTimeBetweenTicks;
+					_jumpTimeoutDelta -= ServerWorldManager.instance.timer.MinTimeBetweenTicks;
 				}
 				else if (input.jump)
 				{
-                    _verticalVelocity = Mathf.Sqrt(JumpHeight * -2f * Gravity);
-					_input.CancelCrouchInput();
-                }
-            }
+					_verticalVelocity = Mathf.Sqrt(JumpHeight * -2f * Gravity);
+				}
+			}
 			else
 			{
 				// reset the jump timeout timer
@@ -501,7 +531,7 @@ namespace PlayerController
 				// fall timeout
 				if (_fallTimeoutDelta >= 0.0f)
 				{
-					_fallTimeoutDelta -= timer.MinTimeBetweenTicks;
+					_fallTimeoutDelta -= ServerWorldManager.instance.timer.MinTimeBetweenTicks;
 				}
 
 				// if we are not grounded, do not jump
@@ -510,77 +540,33 @@ namespace PlayerController
 			// apply gravity over time if under terminal (multiply by delta time twice to linearly speed up over time)
 			if (_verticalVelocity < _terminalVelocity)
 			{
-				_verticalVelocity += Gravity * timer.MinTimeBetweenTicks;
+				_verticalVelocity += Gravity * ServerWorldManager.instance.timer.MinTimeBetweenTicks;
 			}
 		}
 
-		private void HandleCrouch(InputPayload input)
+		private void HandleCrouchAndSprint(InputPayload input)
 		{
-			if(input.crouch)
+			isCrouched = (input.crouch && !isSprinting && isGrounded);
+			isSprinting = (input.sprint && !isCrouched && isGrounded);
+		}
+		private void AdjustPlayerHeight()
+		{
+			if (isCrouched)
 			{
-				TryCrouch();
-            }
+				if(_controller.height > crouchedHeight)
+				{
+					_controller.height = Mathf.Max(_controller.height - crouchAndUncrouchSpeed*ServerWorldManager.instance.timer.MinTimeBetweenTicks, crouchedHeight);
+				}
+			}
 			else
 			{
-                TryUncrouch();
-            }
-		}
-		public bool TryCrouch()
-		{
-			// Try to crouch and return whether we were successful
-			if (Grounded && !crouched && !crouchCoroutineIsRunning)
-			{
-                animatorHandler.PlayTargetAnimation("Crouch", 1);
-				StartCoroutine("CrouchOrUncrouchCoroutine", true);
-                _input.CancelSprintInput();
-                return true;
-			}
-			return false;
-		}
-		public bool TryUncrouch()
-		{
-			if (crouched && !crouchCoroutineIsRunning)
-			{
-                StartCoroutine("CrouchOrUncrouchCoroutine", false);
-                animatorHandler.PlayTargetAnimation("Uncrouch", 1);
-				return true;
-            }
-			return false;
-		}
-
-		IEnumerator CrouchOrUncrouchCoroutine(bool goingDown)
-		{
-			if (crouchCoroutineIsRunning)
-			{
-				yield return null;
-			}
-			crouchCoroutineIsRunning = true;
-            float crouchLerp = (baseHeight - crouchedHeight) / crouchTime;
-
-            if (goingDown)
-			{
-				while(_controller.height > crouchedHeight)
-				{
-					_controller.height -= crouchLerp*Time.deltaTime;
-					yield return null;
-				}
-				_controller.height = crouchedHeight;
-				crouched = true;
-			}
-            else
-            {
-                while (_controller.height < baseHeight)
+                if (_controller.height < baseHeight)
                 {
-                    _controller.height += crouchLerp*Time.deltaTime;
-					Debug.Log(_controller.height);
-					yield return null;
+                    _controller.height = Mathf.Min(_controller.height + crouchAndUncrouchSpeed * ServerWorldManager.instance.timer.MinTimeBetweenTicks, baseHeight);
                 }
-                _controller.height = baseHeight;
-                crouched = false;
             }
-			crouchCoroutineIsRunning = false;
-        }
-
+		}
+		
 		private static float ClampAngle(float lfAngle, float lfMin, float lfMax)
 		{
 			if (lfAngle < -360f) lfAngle += 360f;
@@ -593,7 +579,7 @@ namespace PlayerController
 			Color transparentGreen = new Color(0.0f, 1.0f, 0.0f, 0.35f);
 			Color transparentRed = new Color(1.0f, 0.0f, 0.0f, 0.35f);
 
-			if (Grounded) Gizmos.color = transparentGreen;
+			if (isGrounded) Gizmos.color = transparentGreen;
 			else Gizmos.color = transparentRed;
 
 			// when selected, draw a gizmo in the position of, and matching radius of, the grounded collider

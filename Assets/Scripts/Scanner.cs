@@ -16,6 +16,8 @@ public class Scanner : NetworkBehaviour
     [SerializeField] float minSpread = 5f;
     [SerializeField] float maxSpread = 30f;
 
+    [SerializeField] AudioSource audioSource;
+
     ScanLinesPool scanLinesPool;
 
     private void Awake()
@@ -37,6 +39,11 @@ public class Scanner : NetworkBehaviour
         if (isScanning) 
         {
             ScanTerrain();
+            audioSource.Play();
+        }
+        else
+        {
+            audioSource.Stop();
         }
     }
     public void ScanTerrain()

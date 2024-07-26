@@ -200,6 +200,7 @@ namespace PlayerController
 			}
 			else if (IsServer)
 			{
+				transform.position = GameManager.instance.ReturnRandomSpawnPoint();
 				shadow = Instantiate(shadowPrefab);
 				shadow.SetParent(this);
 				serverHistoryBuffer = new CircularBuffer<StatePayload>(1024);

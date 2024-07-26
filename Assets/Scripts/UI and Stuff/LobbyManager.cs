@@ -134,7 +134,7 @@ public class LobbyManager : MonoBehaviour
         NetworkManager.Singleton.GetComponent<UnityTransport>().SetConnectionData(ipv4Address, port, "0.0.0.0");
 
         MultiplayerManager.instance.StartServer();
-        NetworkManager.Singleton.SceneManager.LoadScene("Playground", UnityEngine.SceneManagement.LoadSceneMode.Single);
+        NetworkManager.Singleton.SceneManager.LoadScene("Test Map", UnityEngine.SceneManagement.LoadSceneMode.Single);
     }
 #endif
 

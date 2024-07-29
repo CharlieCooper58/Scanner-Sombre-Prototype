@@ -58,6 +58,7 @@ public class PlayerWeaponController : NetworkBehaviour
             shotTracer.SetPosition(0, equippedWeapon.barrelEndpoint.position);
             shotTracer.SetPosition(1, hitPoint);
             FireWeaponServerRPC(hitPoint - cameraRotationThingy.position, ServerWorldManager.instance.currentServerTimerTick.Value);
+            equippedWeapon.FireWeaponInstantFeedback(hit.point);
         }
     }
 

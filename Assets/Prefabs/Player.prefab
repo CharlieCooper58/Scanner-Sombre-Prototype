@@ -138,6 +138,8 @@ MonoBehaviour:
   reloadTimerMax: 0.25
   gunAudio: {fileID: 5589982490191360205}
   gunshotSounds: {fileID: 11400000, guid: 61591aab1318690498d4f7003e84815c, type: 2}
+  gunshotParticleControllerPrefab: {fileID: 3792472824242448346, guid: 4f00b47751bd1404d8e728f962441e46,
+    type: 3}
 --- !u!1 &960723278814833603
 GameObject:
   m_ObjectHideFlags: 0

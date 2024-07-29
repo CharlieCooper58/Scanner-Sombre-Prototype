@@ -12,6 +12,8 @@ public class Weapon : NetworkBehaviour
     [SerializeField] AudioSource gunAudio;
     [SerializeField] SoundEffectSO gunshotSounds;
 
+    [SerializeField] GunshotParticleController gunshotParticleControllerPrefab;
+
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
@@ -19,6 +21,12 @@ public class Weapon : NetworkBehaviour
         {
             reloadTimer.Value = 0;
         }
+    }
+    public void FireWeaponInstantFeedback(Vector3 hitPoint)
+    {
+        gunAudio.PlayOneShot(gunshotSounds.GetSound());
+        var gunshotParticleController = Instantiate(gunshotParticleControllerPrefab, barrelEndpoint.position, barrelEndpoint.rotation);
+        gunshotParticleController.FireGunParticles(Vector3.Distance(barrelEndpoint.position, hitPoint));
     }
     public void Fire()
     {
@@ -30,6 +38,10 @@ public class Weapon : NetworkBehaviour
     [ClientRpc]
     public void FireSoundClientRPC()
     {
+        if (IsOwner)
+        {
+            return;
+        }
         gunAudio.PlayOneShot(gunshotSounds.GetSound());
         Debug.Log("Please bang");
     }

@@ -40,6 +40,17 @@ public class WeaponBob : MonoBehaviour
     public Vector3 bobRotationMultiplier = Vector3.one * 0.06f;
     Vector3 bobEulerRotation;
 
+    [Header("Recoil Settings")]
+    Vector3 recoilTargetOffset;
+    [SerializeField] float recoilPositionResponsiveness;
+    [SerializeField] float recoilPositionReturnSpeed;
+    Vector3 recoilAngularOffset;
+    [SerializeField] float recoilRotationResponsiveness;
+    [SerializeField] float recoilRotationReturnSpeed;
+
+    [SerializeField] float recoilPositionOffsetMax;
+    [SerializeField] float recoilAngleOffsetMax;
+
     [Header("Inputs")]
     Vector3 lookInput;
     Vector3 movementInput;
@@ -62,8 +73,10 @@ public class WeaponBob : MonoBehaviour
         CalculateSwayPosition();
         CalculateSwayRotation();
 
-        transform.localPosition = Vector3.Lerp(transform.localPosition, swayPos+bobPosition, Time.deltaTime * lerpPositionSmoothing);
-        transform.localRotation = Quaternion.Slerp(transform.localRotation, Quaternion.Euler(swayEulerRot)*Quaternion.Euler(bobEulerRotation), Time.deltaTime * lerpRotationSmoothing);
+        ResetRecoilTowardsZero();
+
+        transform.localPosition = Vector3.Lerp(transform.localPosition, swayPos+bobPosition + recoilTargetOffset, Time.deltaTime * lerpPositionSmoothing);
+        transform.localRotation = Quaternion.Slerp(transform.localRotation, Quaternion.Euler(swayEulerRot)*Quaternion.Euler(bobEulerRotation) * Quaternion.Euler(recoilAngularOffset), Time.deltaTime * lerpRotationSmoothing);
     }
     #region Sway
     void CalculateSwayPosition()
@@ -112,6 +125,20 @@ public class WeaponBob : MonoBehaviour
         bobEulerRotation.y = (movementInput != Vector3.zero ? bobRotationMultiplier.y * curveCos: 0);
         bobEulerRotation.z = (movementInput != Vector3.zero ? bobRotationMultiplier.z * curveCos*movementInput.x:0);
 
+    }
+    #endregion
+
+    #region Recoil
+    private void ResetRecoilTowardsZero()
+    {
+        recoilTargetOffset = Vector3.Lerp(recoilTargetOffset, Vector3.zero, recoilPositionReturnSpeed * Time.deltaTime);
+        recoilAngularOffset = Vector3.Lerp(recoilAngularOffset, Vector3.zero, recoilRotationReturnSpeed * Time.deltaTime);
+
+    }
+    public void SetRecoil(Weapon.ShotRecoilResults recoil)
+    {
+        recoilTargetOffset = Vector3.ClampMagnitude(recoilTargetOffset+recoilPositionResponsiveness * recoil.positionRecoil, recoilPositionOffsetMax);
+        recoilAngularOffset = Vector3.ClampMagnitude(recoilAngularOffset+recoilRotationResponsiveness * recoil.rotationRecoil, recoilAngleOffsetMax);
     }
     #endregion
 }

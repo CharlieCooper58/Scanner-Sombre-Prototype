@@ -8,17 +8,20 @@ public class PlayerWeaponController : NetworkBehaviour
 {
     FirstPersonController playerController;
     PlayerInputHandler playerInputHandler;
+    WeaponBob playerWeaponBob;
+    CameraRecoil cameraRecoil;
     [SerializeField] Weapon equippedWeapon;
     [SerializeField] Transform cameraRotationThingy;
     Vector3 screenCenter;
     [SerializeField] LayerMask canHitWithGunMask;
 
-    [SerializeField] LineRenderer shotTracer;
 
     private void Awake()
     {
         playerController = GetComponent<FirstPersonController>();
         playerInputHandler = GetComponent<PlayerInputHandler>();
+        cameraRecoil = GetComponentInChildren<CameraRecoil>();
+        playerWeaponBob = GetComponentInChildren<WeaponBob>();
     }
     private void Start()
     {
@@ -55,9 +58,11 @@ public class PlayerWeaponController : NetworkBehaviour
                 // If no object is hit, return the player's position plus 100 times the ray direction
                 hitPoint = cameraRotationThingy.position + ray.direction * 100f;
             }
-            shotTracer.SetPosition(0, equippedWeapon.barrelEndpoint.position);
-            shotTracer.SetPosition(1, hitPoint);
             FireWeaponServerRPC(hitPoint - cameraRotationThingy.position, ServerWorldManager.instance.currentServerTimerTick.Value);
+            equippedWeapon.FireWeaponInstantFeedback(hit.point);
+            Weapon.ShotRecoilResults recoil = equippedWeapon.GetShotRecoil();
+            cameraRecoil.RecoilFire(recoil);
+            playerWeaponBob.SetRecoil(recoil);
         }
     }
 

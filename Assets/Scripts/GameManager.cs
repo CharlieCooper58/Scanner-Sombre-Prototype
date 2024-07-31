@@ -9,6 +9,10 @@ public class GameManager : NetworkBehaviour
     public static GameManager instance;
     [SerializeField] Transform[] spawnpoints;
 
+    public static int localPlayerLayer;
+    public static int nonLocalPlayerLayer;
+    public static int localScanLayer;
+    public static int nonLocalScanLayer;
     private void Awake()
     {
         if(instance == null)
@@ -19,6 +23,22 @@ public class GameManager : NetworkBehaviour
         else
         {
             Destroy(gameObject);
+        }
+        localPlayerLayer = LayerMask.NameToLayer("Local Player");
+        nonLocalPlayerLayer = LayerMask.NameToLayer("Nonlocal Player");
+        localScanLayer = LayerMask.NameToLayer("Scan");
+        nonLocalScanLayer = LayerMask.NameToLayer("Nonlocal Scan");
+    }
+    public static void SetGameObjectAndChildrenLayer(GameObject gameObject, int layer)
+    {
+        if(gameObject == null)
+        {
+            return;
+        }
+        gameObject.layer = layer;
+        for(int i = 0; i<gameObject.transform.childCount; i++)
+        {
+            SetGameObjectAndChildrenLayer(gameObject.transform.GetChild(i).gameObject, layer);
         }
     }
     // Start is called before the first frame update

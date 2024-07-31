@@ -116,7 +116,7 @@ ParticleSystem:
     startLifetime:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 1
+      scalar: 0.5
       minScalar: 5
       maxCurve:
         serializedVersion: 2
@@ -671,7 +671,7 @@ ParticleSystem:
     radiusThickness: 0
     donutRadius: 0.2
     m_Position: {x: 0.000040662104, y: 0.000005295009, z: 0.000000082983654}
-    m_Rotation: {x: 272.7152, y: 180, z: 180}
+    m_Rotation: {x: 0, y: 0, z: 0}
     m_Scale: {x: 0.35652167, y: 0.3565173, z: 0.35652357}
     placementMode: 0
     m_MeshMaterialIndex: 0
@@ -4964,7 +4964,7 @@ ParticleSystem:
     startLifetime:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 1
+      scalar: 0.5
       minScalar: 5
       maxCurve:
         serializedVersion: 2
@@ -5519,7 +5519,7 @@ ParticleSystem:
     radiusThickness: 0.1
     donutRadius: 0.2
     m_Position: {x: 0.000040662104, y: 0.000005295009, z: 0.000000082983654}
-    m_Rotation: {x: 272.7152, y: 180, z: 180}
+    m_Rotation: {x: 0, y: 0, z: 0}
     m_Scale: {x: 0.35652167, y: 0.3565173, z: 0.35652357}
     placementMode: 0
     m_MeshMaterialIndex: 0
@@ -5599,7 +5599,7 @@ ParticleSystem:
     sphericalDirectionAmount: 0
     randomPositionAmount: 0
     radius:
-      value: 1
+      value: 0.1
       mode: 0
       spread: 0
       speed:
@@ -5718,7 +5718,7 @@ ParticleSystem:
     rateOverTime:
       serializedVersion: 2
       minMaxState: 0
-      scalar: 50
+      scalar: 200
       minScalar: 10
       maxCurve:
         serializedVersion: 2
@@ -6898,7 +6898,7 @@ ParticleSystem:
           outWeight: 0.33333334
         - serializedVersion: 3
           time: 0.1
-          value: 0
+          value: 0.025
           inSlope: 0
           outSlope: 0
           tangentMode: 0
@@ -6922,7 +6922,7 @@ ParticleSystem:
         m_Curve:
         - serializedVersion: 3
           time: 0
-          value: 0.0000012349337
+          value: 0.025
           inSlope: 0
           outSlope: 0
           tangentMode: 0

@@ -52,7 +52,7 @@ public class Weapon : NetworkBehaviour
     {
         gunAudio.PlayOneShot(gunshotSounds.GetSound());
         var gunshotParticleController = Instantiate(gunshotParticleControllerPrefab, barrelEndpoint.position, barrelEndpoint.rotation);
-        gunshotParticleController.FireGunParticles(Vector3.Distance(barrelEndpoint.position, hitPoint));
+        gunshotParticleController.FireGunParticles(barrelEndpoint.position, hitPoint);
         reloadTimerLocal = reloadTimerLocalMax;
     }
     public void Fire()

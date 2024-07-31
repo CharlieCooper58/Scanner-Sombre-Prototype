@@ -10,6 +10,7 @@ public class PlayerWeaponController : NetworkBehaviour
     PlayerInputHandler playerInputHandler;
     WeaponBob playerWeaponBob;
     CameraRecoil cameraRecoil;
+    CrosshairResponse crosshairResponse;
     [SerializeField] Weapon equippedWeapon;
     [SerializeField] Transform cameraRotationThingy;
     Vector3 screenCenter;
@@ -22,6 +23,7 @@ public class PlayerWeaponController : NetworkBehaviour
         playerInputHandler = GetComponent<PlayerInputHandler>();
         cameraRecoil = GetComponentInChildren<CameraRecoil>();
         playerWeaponBob = GetComponentInChildren<WeaponBob>();
+        crosshairResponse = GetComponentInChildren<CrosshairResponse>();
     }
     private void Start()
     {
@@ -63,6 +65,7 @@ public class PlayerWeaponController : NetworkBehaviour
             Weapon.ShotRecoilResults recoil = equippedWeapon.GetShotRecoil();
             cameraRecoil.RecoilFire(recoil);
             playerWeaponBob.SetRecoil(recoil);
+            crosshairResponse.SetCrosshairResponse();
         }
     }
 

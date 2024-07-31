@@ -46,6 +46,7 @@ namespace NetworkTools
         public Vector3 position;
         public Quaternion rotation;
         public Vector3 lookDirection;
+        public Vector3 recoilDirection;
         public bool moving;
         public bool sprint;
         public bool crouch;
@@ -57,6 +58,7 @@ namespace NetworkTools
             serializer.SerializeValue(ref position);
             serializer.SerializeValue(ref rotation);
             serializer.SerializeValue(ref lookDirection);
+            serializer.SerializeValue(ref recoilDirection);
             serializer.SerializeValue(ref moving);
             serializer.SerializeValue(ref sprint);
             serializer.SerializeValue(ref crouch);

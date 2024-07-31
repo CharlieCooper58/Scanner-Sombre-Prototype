@@ -73,8 +73,10 @@ namespace PlayerController
 
 
 		[Header("Cinemachine")]
+		// The Transform that we rotate when we move the camera around.  Its child, which also factors in recoil, will be the follow target of our cinemachine vcam
+		[SerializeField] private GameObject LookControllerPivot;
 		[Tooltip("The follow target set in the Cinemachine Virtual Camera that the camera will follow")]
-		public GameObject CinemachineCameraTarget;
+		public GameObject cinemachineFollowCameraTarget;
 		[Tooltip("How far in degrees can you move the camera up")]
 		public float TopClamp = 90.0f;
 		[Tooltip("How far in degrees can you move the camera down")]
@@ -188,13 +190,14 @@ namespace PlayerController
 			if (IsLocalPlayer)
 			{
 				int localPlayerLayer = LayerMask.NameToLayer("Local Player");
+				GameManager.SetGameObjectAndChildrenLayer(gameObject, GameManager.localPlayerLayer);
 				gameObject.layer = localPlayerLayer;
 				GetComponentInChildren<Collider>().gameObject.layer = localPlayerLayer;
-				CinemachineCameraTarget.layer = localPlayerLayer;
+				cinemachineFollowCameraTarget.layer = localPlayerLayer;
 				CinemachineVirtualCamera vcam = FindObjectOfType<CinemachineVirtualCamera>();
 				if (vcam != null)
 				{
-					vcam.Follow = CinemachineCameraTarget.transform;
+					vcam.Follow = cinemachineFollowCameraTarget.transform;
 				}
 				ServerWorldManager.instance.localPlayer = this;
 			}
@@ -206,7 +209,11 @@ namespace PlayerController
 				shadow.SetParent(this);
 				serverHistoryBuffer = new CircularBuffer<StatePayload>(1024);
 			}
-			ServerWorldManager.instance.activePlayers.Add(this);
+			else
+			{
+                GameManager.SetGameObjectAndChildrenLayer(gameObject, GameManager.nonLocalPlayerLayer);
+            }
+            ServerWorldManager.instance.activePlayers.Add(this);
 
 		}
 
@@ -251,16 +258,17 @@ namespace PlayerController
 				InputPayload inputPayload = serverInputQueue.Dequeue();
 				bufferIndex = inputPayload.tick % k_bufferSize;
 				transform.rotation = inputPayload.rotation;
-				CinemachineCameraTarget.transform.localRotation = inputPayload.lookRotation;
+				LookControllerPivot.transform.localRotation = inputPayload.lookRotation;
 
 				StatePayload statePayload = ProcessMovement(inputPayload);
 				serverStateBuffer.Add(statePayload, bufferIndex);
 			}
-            StatePayload historyPayload = new StatePayload()
-            {
-                position = transform.position,
-                rotation = transform.rotation,
-                lookDirection = transform.forward,
+			StatePayload historyPayload = new StatePayload()
+			{
+				position = transform.position,
+				rotation = transform.rotation,
+				lookDirection = LookControllerPivot.transform.localEulerAngles,
+				recoilDirection = cinemachineFollowCameraTarget.transform.localEulerAngles,
                 sprint = isSprinting,
                 crouch = isCrouched,
                 controllerHeight = _controller.height
@@ -296,7 +304,7 @@ namespace PlayerController
 				tick = currentTick,
 				inputVector = _input.move,
 				rotation = transform.rotation,
-				lookRotation = CinemachineCameraTarget.transform.localRotation,
+				lookRotation = LookControllerPivot.transform.localRotation,
 				sprint = _input.sprint,
 				jump = _input.jump,
 				crouch = _input.crouch,
@@ -427,7 +435,7 @@ namespace PlayerController
 				_cinemachineTargetPitch = ClampAngle(_cinemachineTargetPitch, BottomClamp, TopClamp);
 
 				// Update Cinemachine camera target pitch
-				CinemachineCameraTarget.transform.localRotation = Quaternion.Euler(_cinemachineTargetPitch, 0.0f, 0.0f);
+				LookControllerPivot.transform.localRotation = Quaternion.Euler(_cinemachineTargetPitch, 0.0f, 0.0f);
 
 				// rotate the player left and right
 				transform.Rotate(Vector3.up * _rotationVelocity);

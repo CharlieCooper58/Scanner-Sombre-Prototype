@@ -1,0 +1,1 @@
+The codebase for my scanner game.  This codebase supports an online multiplayer build, though there isn't a map at present.  Also, "Snipre" isn't misspelled---the inspiration game was called "Scanner Sombre."
